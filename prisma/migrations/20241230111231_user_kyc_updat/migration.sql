@@ -1,0 +1,9 @@
+-- CreateEnum
+CREATE TYPE "TIER_LEVEL" AS ENUM ('notSet', 'one', 'two', 'three');
+
+-- AlterTable
+ALTER TABLE "users" ADD COLUMN     "dailyCreditLimit" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "dailyDebitLimit" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "singleCreditLimit" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "singleDebitLimit" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "tierLevel" "TIER_LEVEL" NOT NULL DEFAULT 'notSet';

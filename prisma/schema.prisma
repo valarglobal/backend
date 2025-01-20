@@ -1,0 +1,338 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ACCOUNT_TYPE {
+  PERSONAL
+  BUSINESS
+}
+
+enum CURRENCY {
+  NGN
+  USD
+  EUR
+  GBP
+}
+
+enum TRANSACTION_CATEGORY {
+  BILL_PAYMENT
+  TRANSFER
+  DEPOSIT
+}
+
+enum TRANSACTION_TYPE {
+  DEBIT
+  CREDIT
+} 
+
+
+enum TRANSACTION_STATUS {
+  pending
+  success
+  failed
+}
+
+enum TIER_LEVEL {
+  notSet
+  one
+  two
+  three
+}
+
+enum USER_ACCOUNT_STATUS {
+  active
+  restricted
+  frozen
+}
+
+
+enum NETWORK {
+  mtn
+  airtel
+  etisalat
+  glo
+}
+
+enum USER_ROLE {
+  USER
+  ADMIN
+}
+
+enum BILL_TYPE {
+  data
+  airtime
+}
+
+
+enum SCAM_TICKET_STATUS {
+  opened
+  closed
+}
+
+
+model User {
+  id   String @id @default(uuid()) @db.Uuid
+  email     String  @unique
+  username String @unique
+  fullname String
+
+  password  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  currency CURRENCY @default(NGN)
+  businessName String?
+  isBusiness Boolean? @default(false)
+
+  otpToken  String?
+  tokenVersion Int @default(0)
+
+  phoneNumber String?
+  isPasscodeSet Boolean @default(false)
+  passcode String?
+  isPhoneVerified Boolean @default(false)
+  isEmailVerified Boolean @default(false)
+  isBvnVerified Boolean @default(false)
+  bvn String?
+
+  isNinVerified Boolean @default(false)
+  nin String?
+  selfieBase64Image String?
+  accountType ACCOUNT_TYPE @default(PERSONAL)
+
+  walletPin  String?
+  isWalletPinSet Boolean @default(false)
+
+  profileImageFilename String?
+  profileImageUrl String?
+
+  referralCode String?
+  referredBy String?
+
+  scamTicketCount Int @default(0)
+  dateOfBirth String?
+
+  status USER_ACCOUNT_STATUS @default(active)
+
+  role USER_ROLE @default(USER)
+  // transaction limit for user
+  dailyCummulativeTransactionLimit Float @default(0)
+  cummulativeBalanceLimit Float @default(0)
+
+  // tier level
+  tierLevel TIER_LEVEL @default(notSet)
+
+  // relationships
+  wallet Wallet?
+  scamTicket  ScamTicket[]
+
+  //table name
+  @@map("users")
+}
+
+model Wallet {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @unique @db.Uuid
+  balance Float @default(0)
+  currency CURRENCY @default(NGN)
+
+  accountNumber String @unique
+  accountName String?
+  bankName String?
+  bankCode String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accountRef String?
+
+  // relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  transactions Transaction[]
+  @@map("wallet")
+  @@index([accountNumber])
+}
+
+
+model Transaction {
+    id   String @id @default(uuid()) @db.Uuid
+    walletId String @db.Uuid
+
+    transactionRef String?
+    type  TRANSACTION_TYPE
+    category TRANSACTION_CATEGORY @default(TRANSFER)
+    currency String
+    status  TRANSACTION_STATUS @default(pending)
+    description String?
+    previousBalance Float
+    currentBalance Float
+    
+    reference String?
+
+    billDetails Json?
+    transferDetails Json?
+    depositDetails Json?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    wallet  Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+    @@map("transaction")
+}
+
+
+model PaymentEvent {
+  id   String @id @default(uuid()) @db.Uuid
+
+  refId String
+  status String
+  currency String?
+
+  amountPaid Float
+  settlementAmount Float?
+  fee Float
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("paymentEvent")
+}
+
+model AirtimePlan {
+  id   String @id @default(uuid()) @db.Uuid
+
+  planName String?
+  network NETWORK?
+  countryISOCode String?
+  operatorId Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("airtimePlan")
+}
+
+
+model DataPlan {
+    id   String @id @default(uuid()) @db.Uuid
+    network NETWORK?
+
+    planName String?
+    countryISOCode String?
+    operatorId Int?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("dataPlan")
+}
+
+
+model CablePlan {
+  id   String @id @default(uuid()) @db.Uuid
+
+  planName String?
+  countryISOCode String?
+  billerCode String?
+  description String?
+  shortName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cablePlan")
+}
+
+
+model ElectricityPlan {
+  id   String @id @default(uuid()) @db.Uuid
+
+  planName String?
+  countryISOCode String?
+  billerCode String?
+  description String?
+  shortName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("electricityPlan")
+}
+
+
+model InternetservicePlan {
+  id   String @id @default(uuid()) @db.Uuid
+
+  planName String?
+  countryISOCode String?
+  billerCode String?
+  description String?
+  shortName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("internetservicePlan")
+}
+
+
+model  TransportPlan {
+  id   String @id @default(uuid()) @db.Uuid
+
+  planName String?
+  countryISOCode String?
+  billerCode String?
+  description String?
+  shortName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("transportPlan")
+}
+
+
+model SchoolfeePlan {
+  id   String @id @default(uuid()) @db.Uuid
+
+  planName String?
+  countryISOCode String?
+  billerCode String?
+  description String?
+  shortName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("schoolfeePlan")
+}
+
+model ScamTicket {
+      id   String @id @default(uuid()) @db.Uuid
+      userId String @db.Uuid
+      ref_number Int
+      title String
+      screenshotImageUrl String
+      status SCAM_TICKET_STATUS @default(opened)
+      description String?
+
+      createdAt DateTime @default(now())
+      updatedAt DateTime @updatedAt
+
+      // relationships
+      user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+      @@map("scamTicket")
+      @@index([ref_number])
+}
