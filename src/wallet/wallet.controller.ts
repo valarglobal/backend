@@ -92,6 +92,7 @@ export class WalletController {
   }
 
   @Post('validate-bvn-verification')
+  @HttpCode(HttpStatus.CREATED)
   async ValidateBvnVerification(
     @Body() body: ValidateBvnVerificationDto,
     @Req() req: Request,

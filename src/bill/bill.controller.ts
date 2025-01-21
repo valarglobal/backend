@@ -146,6 +146,11 @@ export class BillController {
     return this.billService.pay(body, user, 'giftcard');
   }
 
+  @Get('giftcard/get-redeem-code')
+  async getGiftCardRedeemCode(@Query('transactionId') transactionId: number) {
+    return this.billService.redeemGiftCard(transactionId);
+  }
+
   @Post('internet/pay')
   async internetPay(@Body() body: GiftCardPayDto, @Req() req: Request) {
     const user = req['user'];

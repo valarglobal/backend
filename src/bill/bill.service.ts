@@ -196,6 +196,22 @@ export class BillService {
     return res;
   }
 
+  async redeemGiftCard(transactionId: number) {
+    let res: any;
+    try {
+      res = await this.apiProvider.redeemGiftCard(transactionId);
+    } catch (error) {
+      console.log('error while redeeming giftcard', error);
+      throw error;
+    }
+
+    return {
+      message: 'Giftcard redeemed successfully',
+      statusCode: HttpStatus.OK,
+      data: res,
+    };
+  }
+
   async getBillInfo(
     billerCode: string,
     bill_type: 'cable' | 'electricity' | 'internet' | 'schoolfee' | 'transport',
@@ -421,8 +437,12 @@ export class BillService {
               fee: res?.fee,
               reference: res?.reference,
               amount: body?.amount,
+              amountPaid: body?.amount,
               ...(bill_type === 'airtime' || bill_type === 'data'
                 ? { network: this.getNetworkProvider((body as PayDto).phone) }
+                : {}),
+              ...(bill_type === 'giftcard'
+                ? { transactionId: res?.transactionId }
                 : {}),
             },
           },
@@ -439,6 +459,9 @@ export class BillService {
       statusCode: HttpStatus.OK,
       data: {
         ...(res?.recharge_token ? { recharge_token: res?.recharge_token } : {}),
+        ...(bill_type === 'giftcard'
+          ? { transactionId: res?.transactionId }
+          : {}),
       },
     };
   }

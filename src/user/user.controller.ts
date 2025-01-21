@@ -9,6 +9,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   Req,
   UploadedFile,
   UseInterceptors,
@@ -36,6 +37,21 @@ import { PhoneDto } from './dto/PhoneDto';
 @Controller('v1/user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
+
+  @Get('statistics-line-chart')
+  async getStatisticsLineChart(@Req() req: Request) {
+    const user = req['user'];
+    return this.userService.getStatisticsLineChart(user);
+  }
+
+  @Get('statistics-pie-chart')
+  async getStatisticsPieChart(
+    @Req() req: Request,
+    @Query('sort') sort: 'all' | 'today' | 'week' | 'month' | 'year',
+  ) {
+    const user = req['user'];
+    return this.userService.getStatisticsPieChart(user, sort);
+  }
 
   @Put('edit-profile')
   @UseInterceptors(FileInterceptor('profile-image', multerOptions('profile')))

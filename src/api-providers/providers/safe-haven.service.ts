@@ -142,6 +142,9 @@ export class SafeHavenService {
         autoSweep: true,
         autoSweepDetails: {
           schedule: 'Instant',
+          accountNumber: this.configService.get<string>(
+            'SAFEHAVE_DEBIT_ACCOUNT_NUMBER',
+          ),
         },
       };
 
@@ -157,6 +160,7 @@ export class SafeHavenService {
       }
 
       console.log('create account response status', response?.data);
+
       if (response.status !== 201) {
         throw new InternalServerErrorException('Failed to create sub account');
       }
@@ -292,25 +296,30 @@ export class SafeHavenService {
       //   oldBalance + (Number(eventData?.amount) - Number(eventData?.fee));
       const newBalance = oldBalance + Number(eventData?.amount);
 
-      // update the user wallet balance
-      await this.prisma.wallet.update({
-        where: { id: wallet?.id },
-        data: {
-          balance: newBalance,
-        },
-      });
+      const senderBankCode = eventData?.sessionId?.substring(0, 6);
 
-      // create a payment event
-      await this.prisma.paymentEvent.create({
-        data: {
-          refId: eventData?.paymentReference,
-          status: eventData?.status ?? 'success',
-          currency: eventData?.currency ?? 'NGN',
-          fee: eventData?.fee ?? 0,
-          amountPaid: Number(eventData?.amount),
-          settlementAmount: Number(eventData?.amount),
-        },
-      });
+      const [senderBankName] = await Promise.all([
+        // get sender bank name from the sessionId - the bankCode is the first 6 digit from  the sessionId
+        this.getBankName(senderBankCode),
+        // update the user wallet balance
+        this.prisma.wallet.update({
+          where: { id: wallet?.id },
+          data: {
+            balance: newBalance,
+          },
+        }),
+        // create a payment event
+        this.prisma.paymentEvent.create({
+          data: {
+            refId: eventData?.paymentReference,
+            status: eventData?.status ?? 'success',
+            currency: eventData?.currency ?? 'NGN',
+            fee: eventData?.fee ?? 0,
+            amountPaid: Number(eventData?.amount),
+            settlementAmount: Number(eventData?.amount),
+          },
+        }),
+      ]);
 
       // create transaction
       await this.prisma.transaction.create({
@@ -327,11 +336,11 @@ export class SafeHavenService {
           depositDetails: {
             senderName: eventData?.debitAccountName,
             senderAccountNumber: eventData?.debitAccountNumber,
-            senderBankName: eventData?.destinationInstitutionCode,
+            senderBankName,
             beneficiaryName: eventData?.creditAccountName,
             beneficiaryAccountNumber: eventData?.creditAccountNumber,
             beneficiaryBankName: defaultBankName,
-            amount: Number(eventData?.amount) - Number(eventData?.fee),
+            amount: Number(eventData?.amount) - Number(eventData?.fees),
             amountPaid: Number(eventData?.amount),
           },
         },
@@ -342,6 +351,13 @@ export class SafeHavenService {
       console.log('error funding account', error);
       throw error;
     }
+  }
+
+  private async getBankName(code: string) {
+    const data = await this.getAllBanks();
+    const banks = data?.data;
+    return banks?.find((bank: { bankCode: string }) => bank?.bankCode === code)
+      ?.name;
   }
 
   async verifyTransferTransaction(sessionId: string) {
@@ -365,7 +381,6 @@ export class SafeHavenService {
 
     const data = response?.data?.data;
 
-    console.log('data', data);
     if (data?.type == 'Inwards' && data?.status === 'Completed') {
       return { isVerified: true, data: response?.data?.data };
     }

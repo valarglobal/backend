@@ -157,7 +157,6 @@ export class VFDBankService {
       headers: await this.getHeaders(),
     });
 
-    console.log('response', response);
     if (response.status !== 200)
       throw new InternalServerErrorException('Failed to get all accounts');
 

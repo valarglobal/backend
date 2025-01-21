@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 
@@ -96,6 +100,30 @@ export class ReloadlyService {
       );
 
     return response?.data;
+  }
+
+  async redeemGiftCard(transactionId: number) {
+    const url =
+      this.GIFT_CARD_BASE_URL + `/orders/transactions/${transactionId}/cards`;
+
+    let res: any;
+
+    try {
+      res = await axios.get(url, {
+        headers: await this.getHeaders(this.GIFT_CARD_BASE_URL),
+      });
+    } catch (error) {
+      console.log('error redeeming giftcard', error);
+      if (error?.response?.status === 404) {
+        throw new NotFoundException('Giftcard with transactionId not found');
+      }
+      throw error;
+    }
+
+    if (res?.status !== 200)
+      throw new InternalServerErrorException('Failed to redeem giftcard');
+
+    return res?.data;
   }
 
   async orderGiftCard(payload: {

@@ -909,8 +909,10 @@ export class WalletService {
     }
 
     let newWallet: any;
-    if (true) {
-      const res: any = await this.apiProvider.createVirtualAccount(
+
+    let res: any;
+    try {
+      res = await this.apiProvider.createVirtualAccount(
         body.bvn,
         {
           ...user,
@@ -922,39 +924,37 @@ export class WalletService {
         body?.verificationId,
         body?.otpCode,
       );
-
-      if (res?.statusCode !== 200) {
-        throw new BadRequestException('Failed to create account');
-      }
-
-      // update the user
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          isBvnVerified: true,
-          bvn: body.bvn,
-          tierLevel: TIER_LEVEL.one,
-          dailyCummulativeTransactionLimit:
-            TIER_ONE_DAILY_CUMMULATIVE_TRANSACTION_LIMIT,
-          cummulativeBalanceLimit: TIER_ONE_COMMULATIVE_BALANCE_LIMIT,
-        },
-      });
-
-      // create new wallet
-      newWallet = await this.prisma.wallet.create({
-        data: {
-          userId: user.id,
-          accountName: res?.account_name,
-          bankName: res?.bank_name,
-          accountNumber: res?.account_number,
-          accountRef: res?.order_ref,
-        },
-      });
+    } catch (error) {
+      throw new BadRequestException('Failed to validate BVN');
     }
+
+    // update the user
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isBvnVerified: true,
+        bvn: body.bvn,
+        tierLevel: TIER_LEVEL.one,
+        dailyCummulativeTransactionLimit:
+          TIER_ONE_DAILY_CUMMULATIVE_TRANSACTION_LIMIT,
+        cummulativeBalanceLimit: TIER_ONE_COMMULATIVE_BALANCE_LIMIT,
+      },
+    });
+
+    // create new wallet
+    newWallet = await this.prisma.wallet.create({
+      data: {
+        userId: user.id,
+        accountName: res?.account_name,
+        bankName: res?.bank_name,
+        accountNumber: res?.account_number,
+        accountRef: res?.order_ref,
+      },
+    });
 
     return {
       message: 'Wallet created succesfully',
-      statusCode: 200,
+      statusCode: 201,
       data: newWallet,
     };
   }

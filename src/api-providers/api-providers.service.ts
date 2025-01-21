@@ -278,6 +278,10 @@ export class ApiProviderService {
     });
   }
 
+  async redeemGiftCard(transactionId: number) {
+    return this.reloadlyService.redeemGiftCard(transactionId);
+  }
+
   async purchaseBill(body: PayBillDto, trx_ref?: string) {
     return this.flutterwaveService.purchaseBill(
       body.itemCode,

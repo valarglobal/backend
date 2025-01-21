@@ -10,6 +10,9 @@ import {
   ACCOUNT_TYPE,
   ScamTicket,
   TIER_LEVEL,
+  Transaction,
+  TRANSACTION_CATEGORY,
+  TRANSACTION_TYPE,
   User,
   Wallet,
 } from '@prisma/client';
@@ -27,7 +30,15 @@ import { WalletEntity } from '../wallet/serializer/wallet.serializer';
 import { plainToInstance } from 'class-transformer';
 import { KycTier2Dto } from './dto/KycTier2Dto';
 import { ReportScamDto } from './dto/ReportScamDto';
-import { format } from 'date-fns';
+import {
+  subDays,
+  format,
+  startOfDay,
+  startOfMonth,
+  startOfYear,
+  startOfWeek,
+  addDays,
+} from 'date-fns';
 import {
   TIER_ONE_COMMULATIVE_BALANCE_LIMIT,
   TIER_ONE_DAILY_CUMMULATIVE_TRANSACTION_LIMIT,
@@ -48,6 +59,196 @@ export class UserService {
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
   ) {}
+
+  async getStatisticsLineChart(user: User & { wallet?: Wallet }) {
+    const wallet = user?.wallet;
+
+    const [creditTransactions, debitTransactions] = await Promise.all([
+      // get all credit transaction for the last 7days
+      this.prisma.transaction.findMany({
+        where: {
+          walletId: wallet?.id,
+          type: TRANSACTION_TYPE.CREDIT,
+          createdAt: {
+            gte: startOfDay(subDays(new Date(), 7)),
+          },
+        },
+      }),
+
+      // get all debit transactions for the last 7 days
+      this.prisma.transaction.findMany({
+        where: {
+          walletId: wallet?.id,
+          type: TRANSACTION_TYPE.DEBIT,
+          createdAt: {
+            gte: startOfDay(subDays(new Date(), 7)),
+          },
+        },
+      }),
+    ]);
+
+    // Helper to group transactions by date
+    const groupByDate = (transactions: any[]) => {
+      return transactions.reduce(
+        (acc, transaction) => {
+          const formattedDate = format(
+            new Date(transaction.createdAt),
+            'dd MMM',
+          );
+
+          if (!acc[formattedDate]) {
+            acc[formattedDate] = 0;
+          }
+          acc[formattedDate] +=
+            transaction?.billDetails?.amountPaid ??
+            transaction?.transferDetails?.amountPaid ??
+            transaction?.depositDetails?.amountPaid ??
+            0; // Sum the amounts
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
+    };
+
+    // Group credit and debit transactions by date
+    const [creditGrouped, debitGrouped] = await Promise.all([
+      Promise.resolve(groupByDate(creditTransactions)),
+      Promise.resolve(groupByDate(debitTransactions)),
+    ]);
+
+    // Prepare an array for the last 7 days
+    const last7Days = Array.from(
+      { length: 7 },
+      (_, i) => format(subDays(new Date(), i), 'dd MMM'), // Format to dd MMM
+    ).reverse(); // Ensure it's sorted oldest to newest
+
+    // Calculate cumulative totals
+    let cumulativeEarnings = 0;
+    let cumulativeDebits = 0;
+    const result = last7Days.map((date, index) => {
+      const dailyCredit = creditGrouped[date] || 0;
+      const dailyDebit = debitGrouped[date] || 0;
+
+      cumulativeEarnings += dailyCredit;
+      cumulativeDebits += dailyDebit;
+
+      return {
+        id: index + 1,
+        date,
+        credits: cumulativeEarnings,
+        debits: cumulativeDebits,
+      };
+    });
+
+    return {
+      message: 'Statistics retrieved successfully',
+      statusCode: HttpStatus.OK,
+      data: result,
+    };
+  }
+
+  async getStatisticsPieChart(
+    user: User & { wallet?: Wallet },
+    sort: 'all' | 'today' | 'week' | 'month' | 'year',
+  ) {
+    let dateFilter: Date | undefined;
+
+    switch (sort) {
+      case 'today':
+        dateFilter = startOfDay(new Date()); // Start of today
+        break;
+      case 'week':
+        dateFilter = startOfWeek(new Date(), { weekStartsOn: 1 }); // Start of the current week (Monday)
+        break;
+      case 'month':
+        dateFilter = startOfMonth(new Date()); // Start of the current month
+        break;
+      case 'year':
+        dateFilter = startOfYear(new Date()); // Start of the current year
+        break;
+      case 'all':
+        dateFilter = undefined; // No filter for all transactions
+        break;
+      default:
+        throw new BadRequestException('Invalid sort parameter');
+    }
+
+    // Fetch transactions based on the filter
+    const transactions = await this.prisma.transaction.findMany({
+      where: {
+        walletId: user.wallet.id,
+        ...(dateFilter && {
+          createdAt: {
+            gte: dateFilter,
+          },
+        }),
+      },
+    });
+
+    function getCummulativeTotal(
+      transactions: any[],
+      category: TRANSACTION_CATEGORY,
+    ) {
+      let totalAmount = 0;
+
+      if (category === TRANSACTION_CATEGORY.DEPOSIT) {
+        totalAmount = transactions.reduce((acc, transaction) => {
+          return acc + (transaction?.depositDetails?.amountPaid ?? 0);
+        }, 0);
+      } else if (category === TRANSACTION_CATEGORY.TRANSFER) {
+        totalAmount = transactions.reduce((acc, transaction) => {
+          return acc + (transaction?.transferDetails?.amountPaid ?? 0);
+        }, 0);
+      } else if (category === TRANSACTION_CATEGORY.BILL_PAYMENT) {
+        totalAmount = transactions.reduce((acc, transaction) => {
+          return acc + (transaction?.billDetails?.amountPaid ?? 0);
+        }, 0);
+      } else {
+        throw new BadRequestException('Invalid transaction category');
+      }
+
+      return totalAmount;
+    }
+
+    const [totalDeposit, totalTransfer, totalBillPayment] = await Promise.all([
+      Promise.resolve(
+        getCummulativeTotal(transactions, TRANSACTION_CATEGORY.DEPOSIT),
+      ),
+      Promise.resolve(
+        getCummulativeTotal(transactions, TRANSACTION_CATEGORY.TRANSFER),
+      ),
+      Promise.resolve(
+        getCummulativeTotal(transactions, TRANSACTION_CATEGORY.BILL_PAYMENT),
+      ),
+    ]);
+
+    const statsPieArray = [
+      {
+        id: 1,
+        title: 'Total Deposit',
+        value: totalDeposit,
+        color: '#64D284',
+      },
+      {
+        id: 2,
+        title: 'Total transfers',
+        value: totalTransfer,
+        color: '#FF8D7D',
+      },
+      {
+        id: 3,
+        title: 'Total bill payment',
+        value: totalBillPayment,
+        color: '#C9A62A',
+      },
+    ];
+
+    return {
+      message: 'Statistics retrieved successfully',
+      statusCode: HttpStatus.OK,
+      data: statsPieArray,
+    };
+  }
 
   async setWalletPin(body: WalletPinDto, user: User) {
     const hashedPin = await bcrypt.hash(body.pin, 12);
