@@ -1,4 +1,10 @@
-import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class PayDto {
   @IsNotEmpty()
@@ -16,4 +22,12 @@ export class PayDto {
   @IsNotEmpty()
   @IsString()
   currency: string;
+
+  @IsNotEmpty()
+  @IsString()
+  walletPin: string;
+
+  @IsBoolean()
+  @IsOptional()
+  addBeneficiary: boolean = false;
 }

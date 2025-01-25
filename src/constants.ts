@@ -2,11 +2,13 @@ export const USER_CLOUDINARY_FOLDER_NAME = 'nattypay/profile_pictures';
 export const REPORT_SCAM_CLOUDINARY_FOLDER_NAME = 'nattypay/report_scams';
 export const REFERRAL_BONUS_PRICE = 500;
 export const GIFT_CARD_FEE = 0;
-export const CABLE_FEE = 500;
+export const CABLE_FEE = 50;
 export const ELECTRICITY_FEE = 30;
 export const INTERNET_FEE = 10;
 export const SCHOOLFEE_FEE = 10;
 export const TRANSPORT_FEE = 10;
+export const CONCURRENT_MAX_RETRIES = 5;
+export const CONCURRENT_BASE_DELAY = 100;
 // tier level single limit
 // TIER 1
 export const TIER_ONE_DAILY_CUMMULATIVE_TRANSACTION_LIMIT = 50000;

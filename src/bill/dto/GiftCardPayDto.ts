@@ -1,5 +1,12 @@
 import { CURRENCY } from '@prisma/client';
-import { IsEnum, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class GiftCardPayDto {
   @IsNotEmpty()
@@ -21,4 +28,12 @@ export class GiftCardPayDto {
   @IsOptional()
   @IsEnum(CURRENCY)
   currency: string;
+
+  @IsNotEmpty()
+  @IsString()
+  walletPin: string;
+
+  @IsBoolean()
+  @IsOptional()
+  addBeneficiary: boolean = false;
 }

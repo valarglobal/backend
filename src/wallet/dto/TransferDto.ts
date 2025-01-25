@@ -1,5 +1,6 @@
 import { CURRENCY } from '@prisma/client';
 import {
+  IsBoolean,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -43,4 +44,8 @@ export class TransferDto {
   @IsOptional()
   @IsString()
   debitSubaccountId: string;
+
+  @IsBoolean()
+  @IsOptional()
+  addBeneficiary: boolean = false;
 }

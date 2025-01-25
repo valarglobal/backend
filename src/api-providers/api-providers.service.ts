@@ -28,6 +28,10 @@ export class ApiProviderService {
     private readonly configService: ConfigService,
   ) {}
 
+  async getSafeHavenBankName(bankCode: string) {
+    return this.safeHavenService.getBankName(bankCode);
+  }
+
   addCountryCode(phoneNumber: string) {
     // Check if the phone number already starts with '+234'
     if (phoneNumber.startsWith('+234')) {

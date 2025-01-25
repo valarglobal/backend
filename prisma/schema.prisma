@@ -80,6 +80,11 @@ enum SCAM_TICKET_STATUS {
   closed
 }
 
+enum BENEFICIARY_TYPE {
+  TRANSFER
+  BILL
+}
+
 
 model User {
   id   String @id @default(uuid()) @db.Uuid
@@ -135,6 +140,7 @@ model User {
 
   // relationships
   wallet Wallet?
+  beneficiaries Beneficiary[]
   scamTicket  ScamTicket[]
 
   //table name
@@ -164,6 +170,39 @@ model Wallet {
   @@index([accountNumber])
 }
 
+
+model Beneficiary {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @unique @db.Uuid
+
+  type BENEFICIARY_TYPE
+
+// details for transfer 
+  bankName String?
+  bankCode String?
+  accountNumber String?
+  accountName String?
+
+
+  // details for bill payment
+  network NETWORK?
+  billerNumber String?
+  operatorId Int?
+  billerCode String?
+  itemCode String?
+
+
+  currency CURRENCY? @default(NGN)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+
+  // relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("beneficiary")
+}
 
 model Transaction {
     id   String @id @default(uuid()) @db.Uuid

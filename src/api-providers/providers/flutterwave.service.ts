@@ -203,9 +203,15 @@ export class FlutterwaveService {
       this.configService.get<string>('FLUTTERWAVE_BASE_URL') +
       `/v3/billers/${billerCode}/items/${itemCode}/payment`;
 
-    const response = await axios.post(url, payload, {
-      headers: this.getHeaders(),
-    });
+    let response: any;
+    try {
+      response = await axios.post(url, payload, {
+        headers: this.getHeaders(),
+      });
+    } catch (error) {
+      console.log('error paying for bill', error);
+      throw error;
+    }
 
     if (response.status !== 200)
       throw new InternalServerErrorException('Failed to purchase bill');

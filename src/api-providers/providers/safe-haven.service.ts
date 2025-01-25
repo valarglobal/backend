@@ -67,6 +67,7 @@ export class SafeHavenService {
         expireIn: data?.expires_in,
       };
     }
+
     return {
       accessToken: data?.access_token,
       ibsClientId: data?.ibs_client_id,
@@ -353,7 +354,7 @@ export class SafeHavenService {
     }
   }
 
-  private async getBankName(code: string) {
+  async getBankName(code: string) {
     const data = await this.getAllBanks();
     const banks = data?.data;
     return banks?.find((bank: { bankCode: string }) => bank?.bankCode === code)

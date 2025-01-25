@@ -1,5 +1,6 @@
 import { CURRENCY } from '@prisma/client';
 import {
+  IsBoolean,
   IsEnum,
   IsNotEmpty,
   IsNumber,
@@ -27,4 +28,12 @@ export class PayBillDto {
   @IsNotEmpty()
   @IsNumber()
   amount: number;
+
+  @IsNotEmpty()
+  @IsString()
+  walletPin: string;
+
+  @IsBoolean()
+  @IsOptional()
+  addBeneficiary: boolean = false;
 }

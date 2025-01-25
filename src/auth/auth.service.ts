@@ -349,13 +349,18 @@ export class AuthService {
       data: { otpToken },
     });
 
+    console.log('user', user);
+
     try {
       // send 2fa email
       this.emailService.sendEmail({
         to: user.email,
         subject: 'Your Login Verification Code - NattyPay',
         template: 'auth/2fa-email.hbs',
-        context: { otpCode: twoFaCode },
+        context: {
+          firstName: user.fullname.split(' ')[0],
+          otpCode: twoFaCode,
+        },
       });
     } catch (error) {
       console.log('error sending 2fa email', error);

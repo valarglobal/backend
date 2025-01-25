@@ -10,6 +10,7 @@ import { ApiProviderService } from 'src/api-providers/api-providers.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { TransferDto } from './dto/TransferDto';
 import {
+  BENEFICIARY_TYPE,
   Prisma,
   TIER_LEVEL,
   TRANSACTION_CATEGORY,
@@ -25,6 +26,8 @@ import { VerifyAccountDto } from './dto/VerifyAccountDto';
 import { InitiateBvnVerificationDto } from './dto/InitiateBvnVerificationDto';
 import { ValidateBvnVerificationDto } from './dto/ValidateBvnVerificationDto';
 import {
+  CONCURRENT_BASE_DELAY,
+  CONCURRENT_MAX_RETRIES,
   defaultBankCode,
   TIER_ONE_COMMULATIVE_BALANCE_LIMIT,
   TIER_ONE_DAILY_CUMMULATIVE_TRANSACTION_LIMIT,
@@ -598,7 +601,9 @@ export class WalletService {
       );
 
     if (fromWallet?.id === toWallet?.id)
-      throw new BadRequestException('Enter a valid account number');
+      throw new BadRequestException(
+        'Source and destination accounts must be different.',
+      );
 
     if (body.amount > fromWallet?.balance)
       throw new BadRequestException('Insufficient Funds');
@@ -657,60 +662,120 @@ export class WalletService {
       console.log('response from transfer', res);
 
       if (res?.statusCode !== 200)
-        throw new BadRequestException('Failed to transfer');
+        throw new InternalServerErrorException('Transfer processing failed');
 
       const transferData = res?.data;
-      await this.prisma.$transaction(
-        async (trx) => {
-          // lock from wallet for updates
-          const lockfromWallet: Wallet[] =
-            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid FOR UPDATE LIMIT 1`;
 
-          const fromWalletNewBalance = await this.deductBalance(
-            lockfromWallet[0],
-            amountPaid,
-            trx,
+      const MAX_RETRIES = CONCURRENT_MAX_RETRIES;
+      const BASE_DELAY = CONCURRENT_BASE_DELAY;
+
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+          await this.prisma.$transaction(
+            async (trx) => {
+              // lock from wallet for updates
+              const lockfromWallet: Wallet[] =
+                await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid FOR UPDATE SKIP LOCKED LIMIT 1`;
+
+              const [fromWalletNewBalance, beneficiaryBankName] =
+                await Promise.all([
+                  this.deductBalance(lockfromWallet[0], amountPaid, trx),
+                  this.apiProvider.getSafeHavenBankName(body?.bankCode),
+                ]);
+
+              // check if beneficiary is to be added
+              if (body?.addBeneficiary) {
+                // check if that account number has been added before
+                const beneficiary = await trx.beneficiary.findFirst({
+                  where: {
+                    userId: user?.id,
+                    accountNumber: body?.accountNumber,
+                  },
+                });
+
+                if (!beneficiary) {
+                  // add beneficiary
+                  await trx.beneficiary.create({
+                    data: {
+                      userId: user?.id,
+                      type: BENEFICIARY_TYPE.TRANSFER,
+                      bankCode: body?.bankCode,
+                      accountNumber: body?.accountNumber,
+                      bankName: beneficiaryBankName,
+                      accountName: transferData?.creditAccountName,
+                    },
+                  });
+                }
+              }
+
+              // create a debit transaction
+              await trx.transaction.create({
+                data: {
+                  walletId: fromWallet.id,
+                  transactionRef: this.generateTransactionRef('DEBIT'),
+                  type: TRANSACTION_TYPE.DEBIT,
+                  currency: body.currency,
+                  status: TRANSACTION_STATUS.success,
+                  description: body.description,
+                  previousBalance: fromWallet?.balance,
+                  currentBalance: fromWalletNewBalance,
+                  transferDetails: {
+                    senderName: fromWallet?.accountName,
+                    senderAccountNumber: fromWallet?.accountNumber,
+                    senderBankName: fromWallet?.bankName,
+                    beneficiaryName: transferData?.creditAccountName,
+                    beneficiaryAccountNumber: transferData?.creditAccountNumber,
+                    beneficiaryBankName,
+                    amount: body.amount,
+                    amountPaid,
+                    fee,
+                  },
+                },
+              });
+            },
+            {
+              isolationLevel: 'Serializable',
+              timeout: 20000,
+            },
           );
 
-          // create a debit transaction
-          await trx.transaction.create({
-            data: {
-              walletId: fromWallet.id,
-              transactionRef: this.generateTransactionRef('DEBIT'),
-              type: TRANSACTION_TYPE.DEBIT,
-              currency: body.currency,
-              status: TRANSACTION_STATUS.success,
-              description: body.description,
-              previousBalance: fromWallet?.balance,
-              currentBalance: fromWalletNewBalance,
-              transferDetails: {
-                senderName: fromWallet?.accountName,
-                senderAccountNumber: fromWallet?.accountNumber,
-                senderBankName: fromWallet?.bankName,
-                beneficiaryName: transferData?.creditAccountName,
-                beneficiaryAccountNumber: transferData?.creditAccountNumber,
-                beneficiaryBankName: transferData?.destinationInstitutionCode,
-                amount: body.amount,
-                amountPaid,
-                fee,
-              },
-            },
-          });
-        },
-        {
-          isolationLevel: 'Serializable',
-          timeout: 20000,
-        },
-      );
+          return {
+            message: 'Transfer initiated successfully',
+            statusCode: HttpStatus.OK,
+          };
+        } catch (error) {
+          // Handle specific Prisma transaction conflict errors
+          if (
+            (error.code === 'P2034' || error.code === 'P40001') &&
+            attempt < MAX_RETRIES - 1
+          ) {
+            // Exponential backoff with jitter
+            const delay =
+              Math.min(
+                BASE_DELAY * Math.pow(2, attempt),
+                5000, // Max delay of 5 seconds
+              ) +
+              Math.random() * 100;
+
+            console.log(
+              `Serialization failure on attempt ${attempt + 1}. Retrying in ${delay}ms...`,
+            );
+
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            continue;
+          }
+
+          // Log and rethrow other errors
+          console.error('Transaction failed:', error);
+          throw new InternalServerErrorException();
+        }
+      }
+
+      throw new InternalServerErrorException();
     } catch (error) {
       console.log('error transfering fund', error);
-      throw new BadRequestException('Failed to transfer');
+      throw new InternalServerErrorException('Transfer processing failed');
     }
-
-    return {
-      message: 'Transfer initiated successfully',
-      statusCode: HttpStatus.OK,
-    };
   }
 
   async verifyAccount(body: VerifyAccountDto) {

@@ -1,10 +1,14 @@
 import {
   BadRequestException,
+  ConflictException,
   HttpStatus,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import {
+  Beneficiary,
+  BENEFICIARY_TYPE,
   NETWORK,
   TRANSACTION_CATEGORY,
   TRANSACTION_STATUS,
@@ -16,6 +20,8 @@ import { ApiProviderService } from 'src/api-providers/api-providers.service';
 import {
   AIRTEL_PREFIXES,
   CABLE_FEE,
+  CONCURRENT_BASE_DELAY,
+  CONCURRENT_MAX_RETRIES,
   ELECTRICITY_FEE,
   ETISALAT_PREFIXES,
   GIFT_CARD_FEE,
@@ -31,6 +37,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { GiftCardPayDto } from './dto/GiftCardPayDto';
 import { VerifyBillerDto } from './dto/VerifyBillerDto';
 import { PayBillDto } from './dto/PayBillDto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class BillService {
@@ -39,8 +46,55 @@ export class BillService {
     private readonly apiProvider: ApiProviderService,
   ) {}
 
+  async getAirtimeNetworkProviders() {
+    const networks = await this.prisma.airtimePlan.findMany();
+
+    return {
+      message: 'Airtime network providers retrieve successfully',
+      statusCode: HttpStatus.OK,
+      data: networks,
+    };
+  }
+
+  async getDataPlanByNetwork(network: string) {
+    let networkQuerykey: NETWORK;
+
+    switch (network.toLocaleLowerCase()) {
+      case 'mtn':
+        networkQuerykey = NETWORK.mtn;
+        break;
+      case 'airtel':
+        networkQuerykey = NETWORK.airtel;
+        break;
+      case 'etisalat':
+        networkQuerykey = NETWORK.etisalat;
+        break;
+      case 'glo':
+        networkQuerykey = NETWORK.glo;
+        break;
+    }
+
+    const dataPlan = await this.prisma.dataPlan.findMany({
+      where: {
+        network: networkQuerykey,
+      },
+    });
+
+    return {
+      message: 'Data plan retrieve successfully',
+      statusCode: HttpStatus.OK,
+      data: dataPlan,
+    };
+  }
+
   async getAirtimePlan(phone: number, currency: string) {
+    if (!phone || phone.toString().length !== 11)
+      throw new BadRequestException('Invalid phone number');
+
     const network = this.getNetworkProvider(String(phone));
+
+    if (!network) throw new NotFoundException('Enter a valid phone number');
+
     const countryISOCode =
       this.apiProvider.getCountryCodeFromCurrency(currency);
 
@@ -51,12 +105,20 @@ export class BillService {
       },
     });
 
+    let res: any;
+    try {
+      res = await this.apiProvider.getOperator(airtimePlan?.operatorId);
+    } catch (error) {
+      console.log('error getting variation amount', error);
+      throw error;
+    }
+
     return {
       message: 'Airtime plan retrieve successfully',
       statusCode: HttpStatus.OK,
       data: {
         network,
-        plan: airtimePlan,
+        plan: res,
       },
     };
   }
@@ -284,7 +346,11 @@ export class BillService {
       throw error;
     }
 
-    return res;
+    return {
+      message: 'Biller number verified successfully',
+      statusCode: HttpStatus.OK,
+      data: res,
+    };
   }
 
   async getProductByISOCode(currency: string) {
@@ -358,112 +424,208 @@ export class BillService {
       | 'transport'
       | 'schoolfee',
   ) {
-    let res: any;
+    if (!user?.isWalletPinSet)
+      throw new BadRequestException('Wallet pin not set');
 
-    // check the balance of the user
-    await this.prisma.$transaction(
-      async (trx) => {
-        // get user wallet
-        const lockWallet: Wallet[] =
-          await trx.$queryRaw`SELECT * FROM wallet WHERE "userId" = ${user?.id}::uuid FOR UPDATE LIMIT 1`;
+    const isMatched = await bcrypt.compare(body?.walletPin, user?.walletPin);
 
-        if (!lockWallet)
-          throw new NotFoundException('Wallet for user not found');
+    if (!isMatched) throw new BadRequestException('Incorrect pin');
 
-        // check for sufficient balance
-        if (lockWallet[0]?.balance < body.amount)
-          throw new BadRequestException('Insufficient balance');
+    const MAX_RETRIES = CONCURRENT_MAX_RETRIES;
+    const BASE_DELAY = CONCURRENT_BASE_DELAY;
 
-        const oldBalance = lockWallet[0]?.balance;
-        const newBalance = oldBalance - body.amount;
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        const result = await this.prisma.$transaction(
+          async (trx) => {
+            // Beneficiary addition logic (unchanged)
+            if (body?.addBeneficiary) {
+              let beneficiary: Beneficiary | null = null;
 
-        // update the wallet balance
-        await trx.wallet.update({
-          where: {
-            id: lockWallet[0]?.id,
+              if (bill_type === 'airtime' || bill_type === 'data') {
+                beneficiary = await trx.beneficiary.findFirst({
+                  where: {
+                    userId: user?.id,
+                    billerNumber: (body as PayDto)?.phone,
+                  },
+                });
+              } else if (bill_type === 'cable' || bill_type === 'electricity') {
+                beneficiary = await trx.beneficiary.findFirst({
+                  where: {
+                    userId: user?.id,
+                    billerNumber: (body as PayBillDto)?.billerNumber,
+                  },
+                });
+              }
+
+              if (!beneficiary) {
+                let payload: any;
+
+                if (bill_type === 'airtime' || bill_type === 'data') {
+                  payload = {
+                    userId: user?.id,
+                    type: BENEFICIARY_TYPE.BILL,
+                    billerNumber: (body as PayDto)?.phone,
+                    network: this.getNetworkProvider((body as PayDto)?.phone),
+                    operatorId: (body as PayDto)?.operatorId,
+                  };
+                } else if (
+                  bill_type === 'cable' ||
+                  bill_type === 'electricity'
+                ) {
+                  payload = {
+                    userId: user?.id,
+                    type: BENEFICIARY_TYPE.BILL,
+                    billerCode: (body as PayBillDto)?.billerCode,
+                    itemCode: (body as PayBillDto)?.itemCode,
+                    billerNumber: (body as PayBillDto)?.billerNumber,
+                  };
+                }
+
+                await trx.beneficiary.create({ data: payload });
+              }
+            }
+
+            // Wallet lock and balance check with more explicit locking
+            const lockWallet: Wallet[] =
+              await trx.$queryRaw`SELECT * FROM wallet WHERE "userId" = ${user?.id}::uuid FOR UPDATE SKIP LOCKED`;
+
+            if (!lockWallet || lockWallet.length === 0)
+              throw new NotFoundException('Wallet for user not found');
+
+            if (lockWallet[0]?.balance < body.amount)
+              throw new BadRequestException('Insufficient balance');
+
+            const oldBalance = lockWallet[0]?.balance;
+            const newBalance = oldBalance - body.amount;
+
+            // Update wallet balance
+            await trx.wallet.update({
+              where: { id: lockWallet[0]?.id },
+              data: { balance: newBalance },
+            });
+
+            // Process bill payment
+            let res: any;
+            const trx_ref = this.generateTransactionRef('DEBIT');
+
+            try {
+              if (bill_type === 'airtime' || bill_type === 'data') {
+                res = await this.apiProvider.purchaseTopup(
+                  body as PayDto,
+                  user?.email,
+                  trx_ref,
+                );
+              } else if (bill_type === 'giftcard') {
+                res = await this.apiProvider.purchaseGiftcard(
+                  body as GiftCardPayDto,
+                  user?.email,
+                  trx_ref,
+                );
+              } else if (bill_type === 'cable' || bill_type === 'electricity') {
+                res = await this.apiProvider.purchaseBill(
+                  body as PayBillDto,
+                  trx_ref,
+                );
+              } else if (
+                bill_type === 'transport' ||
+                bill_type === 'schoolfee'
+              ) {
+                res = await this.apiProvider.purchaseBillWithIdentifier(
+                  body as PayBillDto,
+                  user?.id,
+                  trx_ref,
+                );
+              }
+            } catch (error) {
+              console.error(`Error paying for ${bill_type}`, error);
+              throw error;
+            }
+
+            // Create bill debit transaction
+            const transactionRecord = await trx.transaction.create({
+              data: {
+                walletId: lockWallet[0]?.id,
+                transactionRef: res?.customIdentifier ?? res?.tx_ref,
+                type: TRANSACTION_TYPE.DEBIT,
+                category: TRANSACTION_CATEGORY.BILL_PAYMENT,
+                currency: body.currency,
+                status: TRANSACTION_STATUS.success,
+                previousBalance: oldBalance,
+                currentBalance: newBalance,
+                billDetails: {
+                  recipientEmail: res?.recipientEmail,
+                  recipientPhone: res?.recipientPhone ?? res?.phone_number,
+                  type: bill_type,
+                  fee: res?.fee,
+                  reference: res?.reference,
+                  amount: body?.amount,
+                  amountPaid: body?.amount,
+                  ...(bill_type === 'airtime' || bill_type === 'data'
+                    ? {
+                        network: this.getNetworkProvider(
+                          (body as PayDto).phone,
+                        ),
+                      }
+                    : {}),
+                  ...(bill_type === 'giftcard'
+                    ? { transactionId: res?.transactionId }
+                    : {}),
+                },
+              },
+            });
+
+            return { res, transactionRecord };
           },
+          {
+            isolationLevel: 'Serializable',
+            timeout: 20000,
+          },
+        );
+
+        // Successful transaction
+        return {
+          message: 'Purchase successfully',
+          statusCode: HttpStatus.OK,
           data: {
-            balance: newBalance,
+            ...(result.res?.recharge_token
+              ? { recharge_token: result.res?.recharge_token }
+              : {}),
+            ...(bill_type === 'giftcard'
+              ? { transactionId: result.res?.transactionId }
+              : {}),
           },
-        });
+        };
+      } catch (error) {
+        // Handle specific Prisma transaction conflict errors
+        if (
+          (error.code === 'P2034' || error.code === 'P40001') &&
+          attempt < MAX_RETRIES - 1
+        ) {
+          // Exponential backoff with jitter
+          const delay =
+            Math.min(
+              BASE_DELAY * Math.pow(2, attempt),
+              5000, // Max delay of 5 seconds
+            ) +
+            Math.random() * 100;
 
-        try {
-          const trx_ref = this.generateTransactionRef('DEBIT');
+          console.log(
+            `Serialization failure on attempt ${attempt + 1}. Retrying in ${delay}ms...`,
+          );
 
-          if (bill_type === 'airtime' || bill_type === 'data') {
-            res = await this.apiProvider.purchaseTopup(
-              body as PayDto,
-              user?.email,
-              trx_ref,
-            );
-          } else if (bill_type === 'giftcard') {
-            res = await this.apiProvider.purchaseGiftcard(
-              body as GiftCardPayDto,
-              user?.email,
-              trx_ref,
-            );
-          } else if (bill_type === 'cable' || bill_type === 'electricity') {
-            res = await this.apiProvider.purchaseBill(
-              body as PayBillDto,
-              trx_ref,
-            );
-          } else if (bill_type === 'transport' || bill_type === 'schoolfee') {
-            res = await this.apiProvider.purchaseBillWithIdentifier(
-              body as PayBillDto,
-              user?.id,
-              trx_ref,
-            );
-          }
-        } catch (error) {
-          console.log('error paying for airtime or data');
-          throw error;
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
         }
 
-        // create bill debit transaction
-        await trx.transaction.create({
-          data: {
-            walletId: lockWallet[0]?.id,
-            transactionRef: res?.customIdentifier ?? res?.tx_ref,
-            type: TRANSACTION_TYPE.DEBIT,
-            category: TRANSACTION_CATEGORY.BILL_PAYMENT,
-            currency: body.currency,
-            status: TRANSACTION_STATUS.success,
-            previousBalance: oldBalance,
-            currentBalance: newBalance,
-            billDetails: {
-              recipientEmail: res?.recipientEmail,
-              recipientPhone: res?.recipientPhone ?? res?.phone_number,
-              type: bill_type,
-              fee: res?.fee,
-              reference: res?.reference,
-              amount: body?.amount,
-              amountPaid: body?.amount,
-              ...(bill_type === 'airtime' || bill_type === 'data'
-                ? { network: this.getNetworkProvider((body as PayDto).phone) }
-                : {}),
-              ...(bill_type === 'giftcard'
-                ? { transactionId: res?.transactionId }
-                : {}),
-            },
-          },
-        });
-      },
-      {
-        isolationLevel: 'Serializable',
-        timeout: 20000,
-      },
-    );
+        // Log and rethrow other errors
+        console.error('Transaction failed:', error);
+        throw new InternalServerErrorException('Payment processing failed');
+      }
+    }
 
-    return {
-      message: 'Purchase successfully',
-      statusCode: HttpStatus.OK,
-      data: {
-        ...(res?.recharge_token ? { recharge_token: res?.recharge_token } : {}),
-        ...(bill_type === 'giftcard'
-          ? { transactionId: res?.transactionId }
-          : {}),
-      },
-    };
+    // If all retries fail
+    throw new InternalServerErrorException('Payment processing failed');
   }
 
   private getNetworkProvider(phoneNumber: string): NETWORK {

@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Query,
   Req,
@@ -13,6 +14,7 @@ import { PayDto } from './dto/PayDto';
 import { GiftCardPayDto } from './dto/GiftCardPayDto';
 import { VerifyBillerDto } from './dto/VerifyBillerDto';
 import { PayBillDto } from './dto/PayBillDto';
+import { NETWORK } from '@prisma/client';
 
 @Controller('/v1/bill')
 export class BillController {
@@ -24,6 +26,16 @@ export class BillController {
     @Query('currency') currency: string,
   ) {
     return this.billService.getAirtimePlan(phone, currency);
+  }
+
+  @Get('airtime/network-providers')
+  async getAirtimeNetworkProviders() {
+    return this.billService.getAirtimeNetworkProviders();
+  }
+
+  @Get('data/get-plan/:network')
+  async getDataNetworkProviders(@Param('network') network: string) {
+    return this.billService.getDataPlanByNetwork(network);
   }
 
   @Get('data/get-plan')
