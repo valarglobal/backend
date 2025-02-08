@@ -9,6 +9,10 @@ import {
 } from 'class-validator';
 
 export class TransferDto {
+  @IsString()
+  @IsOptional()
+  accountName: string;
+
   @IsNotEmpty()
   @IsString()
   bankCode: string;

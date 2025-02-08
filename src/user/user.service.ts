@@ -8,6 +8,8 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { WalletPinDto } from './dto/WalletPinDto';
 import {
   ACCOUNT_TYPE,
+  BENEFICIARY_TYPE,
+  BILL_TYPE,
   ScamTicket,
   TIER_LEVEL,
   Transaction,
@@ -37,15 +39,15 @@ import {
   startOfMonth,
   startOfYear,
   startOfWeek,
-  addDays,
 } from 'date-fns';
+
 import {
-  TIER_ONE_COMMULATIVE_BALANCE_LIMIT,
+  TIER_ONE_CUMMULATIVE_BALANCE_LIMIT,
   TIER_ONE_DAILY_CUMMULATIVE_TRANSACTION_LIMIT,
-  TIER_THREE_COMMULATIVE_BALANCE_LIMIT,
-  TIER_THREE_DAILY_COMMULATIVE_TRANSACTION_LIMIT,
-  TIER_TWO_COMMULATIVE_BALANCE_LIMIT,
-  TIER_TWO_DAILY_COMMULATIVE_TRANSACTION_LIMIT,
+  TIER_THREE_CUMMULATIVE_BALANCE_LIMIT,
+  TIER_THREE_DAILY_CUMMULATIVE_TRANSACTION_LIMIT,
+  TIER_TWO_CUMMULATIVE_BALANCE_LIMIT,
+  TIER_TWO_DAILY_CUMMULATIVE_TRANSACTION_LIMIT,
 } from 'src/constants';
 import { CreateBusinessAccountDto } from './dto/CreateBusinessAccountDto';
 import { KycTier3Dto } from './dto/KycTier3Dto';
@@ -59,6 +61,48 @@ export class UserService {
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
   ) {}
+
+  async getBeneficiaries(
+    category: BENEFICIARY_TYPE,
+    transferType: string,
+    billType: BILL_TYPE,
+    user: User,
+  ) {
+    let result: any;
+    if (category === BENEFICIARY_TYPE.TRANSFER) {
+      if (transferType === 'intra') {
+        // Get beneficiaries where the linked wallet has an accountName that starts with "NATTYPAYGLOBALS"
+        result = await this.prisma.beneficiary.findMany({
+          where: {
+            userId: user.id,
+            type: category,
+            accountName: { startsWith: 'NATTYPAYGLOBALS' },
+          },
+        });
+      } else if (transferType === 'inter') {
+        // Get beneficiaries where the linked wallet does NOT have an accountName starting with "NATTYPAYGLOBALS"
+        result = await this.prisma.beneficiary.findMany({
+          where: {
+            userId: user.id,
+            type: category,
+            NOT: {
+              accountName: { startsWith: 'NATTYPAYGLOBALS' },
+            },
+          },
+        });
+      }
+    } else {
+      result = await this.prisma.beneficiary.findMany({
+        where: { userId: user.id, type: category, billType },
+      });
+    }
+
+    return {
+      message: 'Beneficiary details retrieved successfully',
+      statusCode: HttpStatus.OK,
+      data: result,
+    };
+  }
 
   async getStatisticsLineChart(user: User & { wallet?: Wallet }) {
     const wallet = user?.wallet;
@@ -378,7 +422,61 @@ export class UserService {
     };
   }
 
+  async requestChangePassword(user: User) {
+    const otpCode = this.generateOtp(6);
+
+    const otpToken = await this.jwtService.signAsync(
+      {
+        sub: user?.id,
+        otpCode,
+      },
+      {
+        secret: this.configService.get('JWT_SECRET'),
+        expiresIn: '10m',
+      },
+    );
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { otpToken },
+    });
+
+    try {
+      // send user email to reset password
+      this.emailService.sendEmail({
+        to: user.email,
+        subject: 'Reset Password - NattyPay',
+        template: 'user/request-change-password.hbs',
+        context: { firstName: user.fullname.split(' ')[0], otpCode },
+      });
+    } catch (error) {
+      console.log('error sending email', error);
+    }
+
+    return {
+      message: 'Reset password email sent successfully',
+      statusCode: HttpStatus.OK,
+    };
+  }
+
   async changePassword(body: ChangePasswordDto, user: User) {
+    if (body.otpCode) {
+      let payload: any;
+      try {
+        payload = await this.jwtService.verifyAsync(user?.otpToken, {
+          secret: this.configService.get('JWT_SECRET'),
+        });
+      } catch (error) {
+        throw new BadRequestException(
+          'Otp code has expired. Please request a new one.',
+        );
+      }
+
+      if (payload?.otpCode !== body.otpCode) {
+        throw new BadRequestException('Invalid otp code');
+      }
+    }
+
     const isValidPassword = await bcrypt.compare(
       body.oldPassword,
       user.password,
@@ -447,6 +545,19 @@ export class UserService {
   }
 
   async resetPin(body: ResetWalletPinDto, user: User) {
+    let payload: any;
+    try {
+      payload = await this.jwtService.verifyAsync(user?.otpToken, {
+        secret: this.configService.get('JWT_SECRET'),
+      });
+    } catch (error) {
+      throw new BadRequestException('Expired OTP code');
+    }
+
+    if (payload?.otpCode !== body.otpCode) {
+      throw new BadRequestException('Invalid OTP code');
+    }
+
     if (body.pin !== body.confirmPin)
       throw new BadRequestException(
         'The PIN and confirmation PIN do not match. Please try again.',
@@ -456,7 +567,7 @@ export class UserService {
 
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { walletPin: hashedPin },
+      data: { walletPin: hashedPin, otpToken: null },
     });
 
     return {
@@ -533,7 +644,7 @@ export class UserService {
             tierLevel: TIER_LEVEL.one,
             dailyCummulativeTransactionLimit:
               TIER_ONE_DAILY_CUMMULATIVE_TRANSACTION_LIMIT,
-            cummulativeBalanceLimit: TIER_ONE_COMMULATIVE_BALANCE_LIMIT,
+            cummulativeBalanceLimit: TIER_ONE_CUMMULATIVE_BALANCE_LIMIT,
           },
         });
 
@@ -688,6 +799,8 @@ export class UserService {
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
+        fullname: body.fullName,
+        phoneNumber: body.phoneNumber,
         profileImageUrl: file?.path,
         profileImageFilename: file?.filename,
       },
@@ -760,38 +873,47 @@ export class UserService {
 
   async verifyTier2Kyc(body: KycTier2Dto, user: User) {
     let res: any;
+
     try {
       // get the image base64 without the meta data
-      const truncateBase64 = body.selfieImage.split(',')[1];
-      res = await this.apiProvider.verifyNinWithSelfie(
-        body.nin,
-        truncateBase64,
-      );
+      res = await this.apiProvider.verifyNin(body.nin);
     } catch (error) {
-      console.log('error verifying nin and selfie image', error);
+      console.log('error verifying nin', error);
       if (error?.response?.status === 400)
         throw new BadRequestException(error?.response?.data?.error);
       throw error;
     }
 
-    console.log('response data', res?.entity);
+    const firstName = user?.fullname.split(' ')[0].toLowerCase();
+    const lastName = user?.fullname.split(' ')[1].toLowerCase();
+    const data = res?.entity;
 
-    //check if the selfie image match
-    const selfieData = res?.entity?.selfie_verification;
-    if (!selfieData?.match || selfieData.confidence_value < 80) {
+    if (
+      data?.first_name.toLowerCase() !== firstName &&
+      data?.first_name.toLowerCase() !== lastName
+    ) {
       throw new BadRequestException(
-        'Face verification failed, please try again',
+        'The provided NIN does not match your first name or last name. Please verify your details and try again.',
+      );
+    }
+
+    if (
+      data?.last_name.toLowerCase() !== firstName &&
+      data?.last_name.toLowerCase() !== lastName
+    ) {
+      throw new BadRequestException(
+        'The provided NIN does not match your first name or last name. Please verify your details and try again.',
       );
     }
 
     // update the account tier level for VFD bank
-    try {
-      const upgradeRes = await this.apiProvider.tier2Upgrade(user);
-      console.log('response from tier2 upgrade', upgradeRes);
-    } catch (error) {
-      console.log('Failed to upgrade account', error);
-      throw error;
-    }
+    // try {
+    //   const upgradeRes = await this.apiProvider.tier2Upgrade(user);
+    //   console.log('response from tier2 upgrade', upgradeRes);
+    // } catch (error) {
+    //   console.log('Failed to upgrade account', error);
+    //   throw error;
+    // }
 
     // update the user and kyc level to tier 2
     await this.prisma.user.update({
@@ -799,11 +921,11 @@ export class UserService {
         id: user?.id,
       },
       data: {
-        selfieBase64Image: body.selfieImage,
+        nin: body.nin,
         tierLevel: TIER_LEVEL.two,
         dailyCummulativeTransactionLimit:
-          TIER_TWO_DAILY_COMMULATIVE_TRANSACTION_LIMIT,
-        cummulativeBalanceLimit: TIER_TWO_COMMULATIVE_BALANCE_LIMIT,
+          TIER_TWO_DAILY_CUMMULATIVE_TRANSACTION_LIMIT,
+        cummulativeBalanceLimit: TIER_TWO_CUMMULATIVE_BALANCE_LIMIT,
       },
     });
 
@@ -816,7 +938,7 @@ export class UserService {
   async verifyTier3Kyc(body: KycTier3Dto, user: User) {
     let res: any;
     try {
-      res = await this.apiProvider.tier3Upgrade(body, user);
+      res = await this.apiProvider.dojahTier3Upgrade(body, user);
     } catch (error) {
       console.log('error upgrading to tier3', error);
       if (error?.response?.status === 400)
@@ -825,10 +947,18 @@ export class UserService {
     }
 
     console.log('response value from tier3 upgrade', res);
-    if (!res)
-      throw new BadRequestException('Failed to upgrade account to tier3');
 
-    // update the user and kyc level to tier 2
+    if (
+      res?.entity?.state_of_residence.toLocaleLowerCase() !==
+        body?.state.toLocaleLowerCase() ||
+      res?.entity?.residential_address.toLocaleLowerCase() !==
+        body?.address.toLocaleLowerCase() ||
+      res?.entity?.lga_of_residence.toLocaleLowerCase() !==
+        body?.city.toLocaleLowerCase()
+    )
+      throw new BadRequestException('Failed to verify address details');
+
+    // update the user and kyc level to tier 3
     await this.prisma.user.update({
       where: {
         id: user?.id,
@@ -836,8 +966,8 @@ export class UserService {
       data: {
         tierLevel: TIER_LEVEL.three,
         dailyCummulativeTransactionLimit:
-          TIER_THREE_DAILY_COMMULATIVE_TRANSACTION_LIMIT,
-        cummulativeBalanceLimit: TIER_THREE_COMMULATIVE_BALANCE_LIMIT,
+          TIER_THREE_DAILY_CUMMULATIVE_TRANSACTION_LIMIT,
+        cummulativeBalanceLimit: TIER_THREE_CUMMULATIVE_BALANCE_LIMIT,
       },
     });
 

@@ -135,6 +135,17 @@ export class ApiProviderService {
     });
   }
 
+  async dojahTier3Upgrade(body: KycTier3Dto, user: User) {
+    return this.dojahService.verifyAddressDetails(
+      {
+        address: body?.address,
+        city: body?.city,
+        state: body?.state,
+      },
+      user,
+    );
+  }
+
   async tier3Upgrade(body: KycTier3Dto, user: User & { wallet?: any }) {
     if (user?.tierLevel == 'one') {
       return this.VFDBankService.tier3Upgrade({
@@ -235,7 +246,11 @@ export class ApiProviderService {
     });
   }
 
-  async transferSafeHavenFund(body: TransferDto, trx_ref?: string) {
+  async transferSafeHavenFund(
+    body: TransferDto,
+    debitAccountNumber: string,
+    trx_ref?: string,
+  ) {
     return this.safeHavenService.transerFund({
       nameEnquiryReference: body?.sessionId,
       debitAccountNumber: this.configService.get<string>(
@@ -247,6 +262,9 @@ export class ApiProviderService {
       narration: body?.description,
       paymentReference: trx_ref,
       saveBeneficiary: false,
+      debitAccountInfo: {
+        debitAccountNumber,
+      },
     });
   }
 

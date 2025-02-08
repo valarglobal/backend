@@ -7,7 +7,7 @@ export class KycTier2Dto {
   @Matches(/^\d+$/, { message: 'NIN must contain only numbers.' })
   nin: string;
 
-  @IsNotEmpty()
-  @IsString()
-  selfieImage: string;
+  // @IsNotEmpty()
+  // @IsString()
+  // selfieImage: string;
 }

@@ -4,6 +4,7 @@ import {
   Param,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { User } from '@prisma/client';
 import axios from 'axios';
 
 @Injectable()
@@ -44,6 +45,33 @@ export class DojahService {
     }
 
     return response.data;
+  }
+
+  async verifyAddressDetails(
+    payload: {
+      address: string;
+      city: string;
+      state: string;
+    },
+    user: User,
+  ) {
+    const url =
+      this.configService.get<string>('DOJAH_BASE_URL') +
+      '/api/v1/kyc/bvn/advance';
+
+    const response = await axios.get(url, {
+      headers: this.getHeaders(),
+      params: {
+        bvn: user?.bvn,
+      },
+    });
+
+    if (response?.status !== 200)
+      throw new InternalServerErrorException(
+        'Failed to verify address details',
+      );
+
+    return response?.data;
   }
 
   async verifyNinWithSelfie(payload: { selfie_image: string; nin: string }) {

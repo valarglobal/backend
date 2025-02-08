@@ -14,7 +14,7 @@ import { PayDto } from './dto/PayDto';
 import { GiftCardPayDto } from './dto/GiftCardPayDto';
 import { VerifyBillerDto } from './dto/VerifyBillerDto';
 import { PayBillDto } from './dto/PayBillDto';
-import { NETWORK } from '@prisma/client';
+import { BILL_TYPE, NETWORK } from '@prisma/client';
 
 @Controller('/v1/bill')
 export class BillController {
@@ -85,14 +85,14 @@ export class BillController {
   @HttpCode(HttpStatus.OK)
   async dataPay(@Body() body: PayDto, @Req() req: Request) {
     const user = req['user'];
-    return this.billService.pay(body, user, 'data');
+    return this.billService.pay(body, user, BILL_TYPE.data);
   }
 
   @Post('airtime/pay')
   @HttpCode(HttpStatus.OK)
   async airtimePay(@Body() body: PayDto, @Req() req: Request) {
     const user = req['user'];
-    return this.billService.pay(body, user, 'airtime');
+    return this.billService.pay(body, user, BILL_TYPE.airtime);
   }
 
   @Get('giftcard/get-categories')
@@ -143,19 +143,19 @@ export class BillController {
   @Post('cable/pay')
   async cablePay(@Body() body: PayBillDto, @Req() req: Request) {
     const user = req['user'];
-    return this.billService.pay(body, user, 'cable');
+    return this.billService.pay(body, user, BILL_TYPE.cable);
   }
 
   @Post('electricity/pay')
   async electricityPay(@Body() body: PayBillDto, @Req() req: Request) {
     const user = req['user'];
-    return this.billService.pay(body, user, 'electricity');
+    return this.billService.pay(body, user, BILL_TYPE.electricity);
   }
 
   @Post('giftcard/pay')
   async giftcardPay(@Body() body: GiftCardPayDto, @Req() req: Request) {
     const user = req['user'];
-    return this.billService.pay(body, user, 'giftcard');
+    return this.billService.pay(body, user, BILL_TYPE.giftcard);
   }
 
   @Get('giftcard/get-redeem-code')
@@ -164,20 +164,20 @@ export class BillController {
   }
 
   @Post('internet/pay')
-  async internetPay(@Body() body: GiftCardPayDto, @Req() req: Request) {
+  async internetPay(@Body() body: PayBillDto, @Req() req: Request) {
     const user = req['user'];
-    return this.billService.pay(body, user, 'giftcard');
+    return this.billService.pay(body, user, BILL_TYPE.internet);
   }
 
   @Post('transport/pay')
   async transportPay(@Body() body: PayBillDto, @Req() req: Request) {
     const user = req['user'];
-    return this.billService.pay(body, user, 'transport');
+    return this.billService.pay(body, user, BILL_TYPE.transport);
   }
 
   @Post('school/pay')
   async schoolfeePay(@Body() body: PayBillDto, @Req() req: Request) {
     const user = req['user'];
-    return this.billService.pay(body, user, 'schoolfee');
+    return this.billService.pay(body, user, BILL_TYPE.schoolfee);
   }
 }

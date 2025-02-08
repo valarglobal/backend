@@ -1,6 +1,10 @@
 import { IsNotEmpty, IsString, Matches } from 'class-validator';
 
 export class ResetWalletPinDto {
+  @IsString()
+  @IsNotEmpty()
+  otpCode: string;
+
   @IsNotEmpty()
   @IsString()
   @Matches(/^[0-9]{4}$/, {

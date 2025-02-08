@@ -349,8 +349,6 @@ export class AuthService {
       data: { otpToken },
     });
 
-    console.log('user', user);
-
     try {
       // send 2fa email
       this.emailService.sendEmail({

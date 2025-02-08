@@ -33,10 +33,27 @@ import { ReportScamDto } from './dto/ReportScamDto';
 import { CreateBusinessAccountDto } from './dto/CreateBusinessAccountDto';
 import { KycTier3Dto } from './dto/KycTier3Dto';
 import { PhoneDto } from './dto/PhoneDto';
+import { BENEFICIARY_TYPE, BILL_TYPE } from '@prisma/client';
 
 @Controller('v1/user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
+
+  @Get('get-beneficiaries')
+  async getBeneficiaryByCategory(
+    @Req() req: Request,
+    @Query('category') category: BENEFICIARY_TYPE,
+    @Query('transferType') transferType: 'intra' | 'inter',
+    @Query('billType') billType: BILL_TYPE,
+  ) {
+    const user = req['user'];
+    return this.userService.getBeneficiaries(
+      category,
+      transferType,
+      billType,
+      user,
+    );
+  }
 
   @Get('statistics-line-chart')
   async getStatisticsLineChart(@Req() req: Request) {
@@ -127,6 +144,12 @@ export class UserController {
   async changePin(@Body() body: ChangePinDto, @Req() req: Request) {
     const user = req['user'];
     return this.userService.changePin(body, user);
+  }
+
+  @Get('request-change-password')
+  async requestChangePassword(@Req() req: Request) {
+    const user = req['user'];
+    return this.userService.requestChangePassword(user);
   }
 
   @Put('change-password')

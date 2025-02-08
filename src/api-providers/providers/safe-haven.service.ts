@@ -150,7 +150,6 @@ export class SafeHavenService {
       };
 
       let response: any;
-
       try {
         response = await axios.post(url, payload, {
           headers: this.getHeaders(token?.accessToken, token?.ibsClientId),
@@ -230,12 +229,16 @@ export class SafeHavenService {
     narration: string;
     paymentReference?: string;
     saveBeneficiary?: boolean;
+    debitAccountInfo: {
+      debitAccountNumber: string;
+    };
   }) {
     const url =
       this.configService.get<string>('SAFEHAVEN_BASE_URL') + '/transfers';
 
     const token = await this.getAccessToken();
 
+    console.log('payload for transfer', payload);
     let response: any;
     try {
       response = await axios.post(url, payload, {
@@ -263,7 +266,9 @@ export class SafeHavenService {
 
   async handleTransferWebhook(body: any) {
     const eventData = body?.data;
-    console.log('eventData', eventData);
+    // console.log('eventData', eventData);
+
+    if (eventData?.type === 'Outwards') return;
 
     try {
       const { isVerified } = await this.verifyTransferTransaction(

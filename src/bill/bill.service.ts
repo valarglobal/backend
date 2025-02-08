@@ -9,6 +9,7 @@ import {
 import {
   Beneficiary,
   BENEFICIARY_TYPE,
+  BILL_TYPE,
   NETWORK,
   TRANSACTION_CATEGORY,
   TRANSACTION_STATUS,
@@ -414,15 +415,8 @@ export class BillService {
 
   async pay(
     body: PayDto | GiftCardPayDto | PayBillDto,
-    user: User,
-    bill_type:
-      | 'airtime'
-      | 'data'
-      | 'giftcard'
-      | 'cable'
-      | 'electricity'
-      | 'transport'
-      | 'schoolfee',
+    user: User & { wallet: Wallet },
+    bill_type: BILL_TYPE,
   ) {
     if (!user?.isWalletPinSet)
       throw new BadRequestException('Wallet pin not set');
@@ -442,17 +436,25 @@ export class BillService {
             if (body?.addBeneficiary) {
               let beneficiary: Beneficiary | null = null;
 
-              if (bill_type === 'airtime' || bill_type === 'data') {
+              if (
+                bill_type === BILL_TYPE.airtime ||
+                bill_type === BILL_TYPE.data
+              ) {
                 beneficiary = await trx.beneficiary.findFirst({
                   where: {
                     userId: user?.id,
+                    billType: bill_type,
                     billerNumber: (body as PayDto)?.phone,
                   },
                 });
-              } else if (bill_type === 'cable' || bill_type === 'electricity') {
+              } else if (
+                bill_type === BILL_TYPE.cable ||
+                bill_type === BILL_TYPE.electricity
+              ) {
                 beneficiary = await trx.beneficiary.findFirst({
                   where: {
                     userId: user?.id,
+                    billType: bill_type,
                     billerNumber: (body as PayBillDto)?.billerNumber,
                   },
                 });
@@ -461,21 +463,26 @@ export class BillService {
               if (!beneficiary) {
                 let payload: any;
 
-                if (bill_type === 'airtime' || bill_type === 'data') {
+                if (
+                  bill_type === BILL_TYPE.airtime ||
+                  bill_type === BILL_TYPE.data
+                ) {
                   payload = {
                     userId: user?.id,
                     type: BENEFICIARY_TYPE.BILL,
+                    billType: bill_type,
                     billerNumber: (body as PayDto)?.phone,
                     network: this.getNetworkProvider((body as PayDto)?.phone),
                     operatorId: (body as PayDto)?.operatorId,
                   };
                 } else if (
-                  bill_type === 'cable' ||
-                  bill_type === 'electricity'
+                  bill_type === BILL_TYPE.cable ||
+                  bill_type === BILL_TYPE.electricity
                 ) {
                   payload = {
                     userId: user?.id,
                     type: BENEFICIARY_TYPE.BILL,
+                    billType: bill_type,
                     billerCode: (body as PayBillDto)?.billerCode,
                     itemCode: (body as PayBillDto)?.itemCode,
                     billerNumber: (body as PayBillDto)?.billerNumber,
@@ -522,15 +529,18 @@ export class BillService {
                   user?.email,
                   trx_ref,
                 );
-              } else if (bill_type === 'cable' || bill_type === 'electricity') {
+              } else if (
+                bill_type === 'cable' ||
+                bill_type === 'electricity' ||
+                bill_type === 'internet' ||
+                bill_type === 'transport' ||
+                bill_type === 'schoolfee'
+              ) {
                 res = await this.apiProvider.purchaseBill(
                   body as PayBillDto,
                   trx_ref,
                 );
-              } else if (
-                bill_type === 'transport' ||
-                bill_type === 'schoolfee'
-              ) {
+              } else {
                 res = await this.apiProvider.purchaseBillWithIdentifier(
                   body as PayBillDto,
                   user?.id,
@@ -570,6 +580,9 @@ export class BillService {
                     : {}),
                   ...(bill_type === 'giftcard'
                     ? { transactionId: res?.transactionId }
+                    : {}),
+                  ...(bill_type === 'electricity' && res?.recharge_token
+                    ? { recharge_token: res?.recharge_token }
                     : {}),
                 },
               },
@@ -617,6 +630,35 @@ export class BillService {
           await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
+
+        // Create failed bill debit transaction
+        await this.prisma.transaction.create({
+          data: {
+            walletId: user.wallet.id,
+            transactionRef: this.generateTransactionRef('DEBIT'),
+            type: TRANSACTION_TYPE.DEBIT,
+            category: TRANSACTION_CATEGORY.BILL_PAYMENT,
+            currency: body.currency,
+            status: TRANSACTION_STATUS.failed,
+            previousBalance: user.wallet.balance,
+            currentBalance: user.wallet.balance,
+            billDetails: {
+              type: bill_type,
+              amount: body?.amount,
+              amountPaid: body?.amount,
+              ...(bill_type === 'airtime' || bill_type === 'data'
+                ? {
+                    network: this.getNetworkProvider((body as PayDto).phone),
+                    recipientPhone: (body as PayDto).phone,
+                  }
+                : {}),
+
+              ...(bill_type === 'electricity' || bill_type === 'cable'
+                ? { recipientPhone: (body as PayBillDto).billerNumber }
+                : {}),
+            },
+          },
+        });
 
         // Log and rethrow other errors
         console.error('Transaction failed:', error);
