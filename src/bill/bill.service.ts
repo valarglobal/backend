@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   HttpStatus,
   Injectable,
   InternalServerErrorException,
@@ -27,6 +26,7 @@ import {
   ETISALAT_PREFIXES,
   GIFT_CARD_FEE,
   GLO_PREFIXES,
+  INTERNATIONAL_AIRTIME_FEE,
   INTERNET_FEE,
   MTN_PREFIXES,
   SCHOOLFEE_FEE,
@@ -39,6 +39,7 @@ import { GiftCardPayDto } from './dto/GiftCardPayDto';
 import { VerifyBillerDto } from './dto/VerifyBillerDto';
 import { PayBillDto } from './dto/PayBillDto';
 import * as bcrypt from 'bcrypt';
+import parsePhoneNumber, { PhoneNumber } from 'libphonenumber-js';
 
 @Injectable()
 export class BillService {
@@ -124,6 +125,50 @@ export class BillService {
     };
   }
 
+  async getInternationalAirtimePlan(phone: number) {
+    const parsedNumber: PhoneNumber | null = this.getInternationalParsedNumber(
+      String(phone),
+    );
+
+    if (!parsedNumber || !parsedNumber.isValid())
+      throw new BadRequestException('Invalid phone number');
+
+    const countryISOCode = parsedNumber?.country;
+
+    let res: any;
+    try {
+      res = await this.apiProvider.getAutoDetectOperator(phone, countryISOCode);
+    } catch (error) {
+      console.log('error getting auto detect operator', error);
+      throw error;
+    }
+
+    return {
+      message: 'Airtime plan retrieve successfully',
+      statusCode: HttpStatus.OK,
+      data: { ...res, payAmount: res?.fees?.local + INTERNATIONAL_AIRTIME_FEE },
+    };
+  }
+
+  async getAirtimeFxRate(amount: number, operatorId: number) {
+    const res = await this.apiProvider.getAirtimeFxRate(amount, operatorId);
+
+    return {
+      message: 'Airtime fx rate retrieve successfully',
+      statusCode: HttpStatus.OK,
+      data: res,
+    };
+  }
+
+  async getGiftCardFxRate(amount: number, currency: string) {
+    const res = await this.apiProvider.getGiftCardFxRate(amount, currency);
+
+    return {
+      message: 'Gift card fx rate retrieve successfully',
+      statusCode: HttpStatus.OK,
+      data: res,
+    };
+  }
   async getDataPlan(phone: number, currency: string) {
     const network = this.getNetworkProvider(String(phone));
     const countryISOCode =
@@ -438,7 +483,8 @@ export class BillService {
 
               if (
                 bill_type === BILL_TYPE.airtime ||
-                bill_type === BILL_TYPE.data
+                bill_type === BILL_TYPE.data ||
+                bill_type === BILL_TYPE.internationalAirtime
               ) {
                 beneficiary = await trx.beneficiary.findFirst({
                   where: {
@@ -465,7 +511,8 @@ export class BillService {
 
                 if (
                   bill_type === BILL_TYPE.airtime ||
-                  bill_type === BILL_TYPE.data
+                  bill_type === BILL_TYPE.data ||
+                  bill_type === BILL_TYPE.internationalAirtime
                 ) {
                   payload = {
                     userId: user?.id,
@@ -662,6 +709,9 @@ export class BillService {
 
         // Log and rethrow other errors
         console.error('Transaction failed:', error);
+        if (error instanceof BadRequestException) {
+          throw error;
+        }
         throw new InternalServerErrorException('Payment processing failed');
       }
     }
@@ -710,4 +760,24 @@ export class BillService {
     const uniqueId = uuidv4(); // Generate a unique UUID
     return `${prefix}${uniqueId}`;
   }
+
+  private getInternationalParsedNumber = (phoneNumber: string) => {
+    if (phoneNumber.startsWith('+')) {
+      return parsePhoneNumber(phoneNumber);
+    }
+
+    if (phoneNumber.startsWith('0')) {
+      // Remove leading 0
+      const normalizedNumber = phoneNumber.substring(1);
+
+      // Try with NG (Nigeria) first as it's most common in our context
+      const withNG = parsePhoneNumber(normalizedNumber, 'NG');
+      if (withNG?.isValid()) {
+        return withNG;
+      }
+    }
+
+    // Try parsing as international number without '+'
+    return parsePhoneNumber(`+${phoneNumber}`);
+  };
 }

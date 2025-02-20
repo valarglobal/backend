@@ -3,6 +3,7 @@ import {
   HttpStatus,
   Injectable,
   NotAcceptableException,
+  NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { WalletPinDto } from './dto/WalletPinDto';
@@ -51,6 +52,8 @@ import {
 } from 'src/constants';
 import { CreateBusinessAccountDto } from './dto/CreateBusinessAccountDto';
 import { KycTier3Dto } from './dto/KycTier3Dto';
+import { ValidatePhoneNumberDto } from './dto/validatePhoneNumberDto';
+import { VerifyPhoneNumberDto } from './dto/verifyPhoneNumberDto';
 
 @Injectable()
 export class UserService {
@@ -700,10 +703,13 @@ export class UserService {
 
         let nairaAccount: any;
         try {
-          nairaAccount =
-            await this.apiProvider.createVirtualBusinessAccount(body);
+          nairaAccount = await this.apiProvider.createVirtualBusinessAccount(
+            body?.bvn,
+            user,
+            body,
+          );
         } catch (error) {
-          console.log('error creating account', error);
+          console.log('error creating business account', error);
           throw error;
         }
 
@@ -738,11 +744,12 @@ export class UserService {
     );
 
     return {
-      message: 'Wallet created succesfully',
+      message: 'Business wallet created succesfully',
       statusCode: HttpStatus.CREATED,
       data: plainToInstance(WalletEntity, newWallet),
     };
   }
+
   async createForeignAccount(currency: string, user: User) {
     if (user?.currency !== currency)
       throw new BadRequestException(`Account must be of ${currency} type`);
@@ -871,6 +878,47 @@ export class UserService {
     };
   }
 
+  async validatePhoneNumber(body: ValidatePhoneNumberDto) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        email: body.email,
+      },
+    });
+
+    if (!user) throw new NotFoundException('User with email not found');
+
+    const otpCode = this.generateOtp(4);
+
+    const otpToken = await this.jwtService.signAsync(
+      {
+        sub: user?.id,
+        otpCode,
+      },
+      {
+        secret: this.configService.get('JWT_SECRET'),
+        expiresIn: '10m',
+      },
+    );
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { otpToken },
+    });
+
+    const res = await this.apiProvider.validatePhoneNumber(
+      body.phoneNumber,
+      `otp code is ${otpCode}`,
+    );
+
+    return {
+      message: 'Otp code sent to your phone number',
+      statusCode: HttpStatus.OK,
+      data: res,
+    };
+  }
+
+  async verifyPhoneNumber(body: VerifyPhoneNumberDto) {}
+
   async verifyTier2Kyc(body: KycTier2Dto, user: User) {
     let res: any;
 
@@ -976,8 +1024,6 @@ export class UserService {
       statusCode: HttpStatus.OK,
     };
   }
-
-  async verifyPhoneNumber(phone: string, user: User) {}
 
   private generateOtp(length: number): string {
     const digits = '0123456789'; // Only digits for OTP

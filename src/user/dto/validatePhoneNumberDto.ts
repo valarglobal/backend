@@ -1,11 +1,11 @@
 import { IsNotEmpty, IsString } from 'class-validator';
 
-export class CreateBusinessAccountDto {
+export class ValidatePhoneNumberDto {
   @IsNotEmpty()
   @IsString()
-  companyRegistrationNumber: string;
+  email: string;
 
   @IsNotEmpty()
   @IsString()
-  bvn: string;
+  phoneNumber: string;
 }

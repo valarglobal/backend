@@ -32,8 +32,9 @@ import { NinDto } from './dto/NinDto';
 import { ReportScamDto } from './dto/ReportScamDto';
 import { CreateBusinessAccountDto } from './dto/CreateBusinessAccountDto';
 import { KycTier3Dto } from './dto/KycTier3Dto';
-import { PhoneDto } from './dto/PhoneDto';
 import { BENEFICIARY_TYPE, BILL_TYPE } from '@prisma/client';
+import { VerifyPhoneNumberDto } from 'src/user/dto/verifyPhoneNumberDto';
+import { ValidatePhoneNumberDto } from './dto/validatePhoneNumberDto';
 
 @Controller('v1/user')
 export class UserController {
@@ -121,13 +122,6 @@ export class UserController {
     return this.userService.verifyNinDetails(body.nin, user);
   }
 
-  @Post('verify-phone')
-  @HttpCode(HttpStatus.OK)
-  async VerifPhoneNumber(@Body() body: PhoneDto, @Req() req: Request) {
-    const user = req['user'];
-    return this.userService.verifyPhoneNumber(body.phone, user);
-  }
-
   @Post('forget-pin')
   async forgetPin(@Req() req: Request) {
     const user = req['user'];
@@ -205,5 +199,21 @@ export class UserController {
   async verifyTier3Kyc(@Body() body: KycTier3Dto, @Req() req: Request) {
     const user = req['user'];
     return this.userService.verifyTier3Kyc(body, user);
+  }
+
+  @Post('validate-phoneNumber')
+  @HttpCode(HttpStatus.OK)
+  async validatePhoneNumber(@Body() body: ValidatePhoneNumberDto) {
+    return this.userService.validatePhoneNumber(body);
+  }
+
+  @Post('verify-phoneNumber')
+  @HttpCode(HttpStatus.OK)
+  async VerifPhoneNumber(
+    @Body() body: VerifyPhoneNumberDto,
+    @Req() req: Request,
+  ) {
+    const user = req['user'];
+    return this.userService.verifyPhoneNumber(body);
   }
 }

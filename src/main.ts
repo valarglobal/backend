@@ -20,6 +20,8 @@ async function bootstrap() {
       'http://localhost:3000',
       'http://localhost:3001',
       'https://natty-pay.vercel.app',
+      'https://www.nattypay.com',
+      'https://nattypay.com',
     ],
     credentials: true, // Allow cookies or authorization headers
   });

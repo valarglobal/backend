@@ -11,6 +11,29 @@ import axios from 'axios';
 export class DojahService {
   constructor(private readonly configService: ConfigService) {}
 
+  async sendSms(data: { phoneNumber: string; message: string }) {
+    const url =
+      this.configService.get<string>('DOJAH_BASE_URL') +
+      '/api/v1/messaging/sms';
+
+    const payload = {
+      destination: data.phoneNumber,
+      message: data.message,
+      channel: 'sms',
+      sender_id: 'NattyPay',
+    };
+
+    const response = await axios.post(url, payload, {
+      headers: this.getHeaders(),
+    });
+
+    if (response.status !== 200) {
+      throw new InternalServerErrorException('Failed to send sms');
+    }
+
+    return response.data;
+  }
+
   async bvnLookUp(bvn: string) {
     const url =
       this.configService.get<string>('DOJAH_BASE_URL') + '/api/v1/kyc/bvn/full';

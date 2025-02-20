@@ -5,7 +5,7 @@ interface EmailOptions {
   context?: any;
 }
 
-interface safeHavenCreateAccount {
+interface SafeHavenAccount {
   firstName?: string;
   lastName?: string;
   phoneNumber: string;
@@ -14,6 +14,11 @@ interface safeHavenCreateAccount {
   bvn: string;
   verificationId?: string;
   otpCode?: string;
+}
+interface safeHavenCreateAccount extends SafeHavenAccount {}
+
+interface safeHavenCreateBusinessAccount extends SafeHavenAccount {
+  companyRegistrationNumber: string;
 }
 
 interface safeHavenInitiateVerification {

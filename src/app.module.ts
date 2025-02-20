@@ -101,6 +101,8 @@ export class AppModule implements NestModule {
         { path: 'v1/auth/forgot-password', method: RequestMethod.POST },
         { path: 'v1/auth/verify-forgot-password', method: RequestMethod.POST },
         { path: 'v1/auth/reset-password', method: RequestMethod.POST },
+        { path: 'v1/auth/validate-phoneNumber', method: RequestMethod.POST },
+        { path: 'v1/auth/verify-phoneNumber', method: RequestMethod.POST },
         { path: 'v1/user/:id', method: RequestMethod.DELETE },
         { path: 'v1/webhook/flutterwave', method: RequestMethod.POST },
         { path: 'v1/webhook/VFD/payment', method: RequestMethod.POST },

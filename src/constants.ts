@@ -7,6 +7,7 @@ export const ELECTRICITY_FEE = 50;
 export const INTERNET_FEE = 10;
 export const SCHOOLFEE_FEE = 10;
 export const TRANSPORT_FEE = 10;
+export const INTERNATIONAL_AIRTIME_FEE = 100;
 export const CONCURRENT_MAX_RETRIES = 5;
 export const CONCURRENT_BASE_DELAY = 100;
 // tier level single limit

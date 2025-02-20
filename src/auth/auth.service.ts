@@ -16,6 +16,8 @@ import { PasscodeLoginDto } from './dto/PasscodeLoginDto';
 import { ResetPasswordDto } from './dto/ResetPasswordDto';
 import { RegisterBusinessDto } from './dto/RegisterBusinessDto';
 import { REFERRAL_BONUS_PRICE } from 'src/constants';
+import { ValidatePhoneNumberDto } from '../user/dto/validatePhoneNumberDto';
+import { VerifyPhoneNumberDto } from '../user/dto/verifyPhoneNumberDto';
 
 @Injectable()
 export class AuthService {
@@ -410,9 +412,10 @@ export class AuthService {
     });
 
     return {
+      message: '2FA verified successfully',
+      statusCode: HttpStatus.OK,
       user: plainToInstance(UserEntity, user),
       accessToken,
-      statusCode: HttpStatus.OK,
     };
   }
 

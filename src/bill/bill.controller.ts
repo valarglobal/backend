@@ -15,11 +15,13 @@ import { GiftCardPayDto } from './dto/GiftCardPayDto';
 import { VerifyBillerDto } from './dto/VerifyBillerDto';
 import { PayBillDto } from './dto/PayBillDto';
 import { BILL_TYPE, NETWORK } from '@prisma/client';
+import { query } from 'express';
 
 @Controller('/v1/bill')
 export class BillController {
   constructor(private readonly billService: BillService) {}
 
+  // local airtime
   @Get('airtime/get-plan')
   async getAirtimePlan(
     @Query('phone') phone: number,
@@ -31,6 +33,20 @@ export class BillController {
   @Get('airtime/network-providers')
   async getAirtimeNetworkProviders() {
     return this.billService.getAirtimeNetworkProviders();
+  }
+
+  // international airtime
+  @Get('airtime/international/get-plan')
+  async getInternationalAirtimePlan(@Query('phone') phone: number) {
+    return this.billService.getInternationalAirtimePlan(phone);
+  }
+
+  @Get('airtime/international/get-fx-rate')
+  async getAirtimeFxRate(
+    @Query('amount') amount: number,
+    @Query('operatorId') operatorId: number,
+  ) {
+    return this.billService.getAirtimeFxRate(amount, operatorId);
   }
 
   @Get('data/get-plan/:network')
@@ -95,6 +111,13 @@ export class BillController {
     return this.billService.pay(body, user, BILL_TYPE.airtime);
   }
 
+  @Post('airtime/international/pay')
+  @HttpCode(HttpStatus.OK)
+  async internationalAirtimePay(@Body() body: PayDto, @Req() req: Request) {
+    const user = req['user'];
+    return this.billService.pay(body, user, BILL_TYPE.internationalAirtime);
+  }
+
   @Get('giftcard/get-categories')
   async getGiftCardCategories() {
     return this.billService.getGiftCardCategories();
@@ -103,6 +126,14 @@ export class BillController {
   @Get('giftcard/get-product')
   async getProductByISOCode(@Query('currency') currency: string) {
     return this.billService.getProductByISOCode(currency);
+  }
+
+  @Get('giftcard/get-fx-rate')
+  async getGiftCardFxRate(
+    @Query('amount') amount: number,
+    @Query('currency') currency: string,
+  ) {
+    return this.billService.getGiftCardFxRate(amount, currency);
   }
 
   @Get('cable/get-bill-info')

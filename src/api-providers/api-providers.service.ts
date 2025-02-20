@@ -16,6 +16,7 @@ import { InitiateBvnVerificationDto } from 'src/wallet/dto/InitiateBvnVerificati
 import { ConfigService } from '@nestjs/config';
 import { ValidateBvnVerificationDto } from 'src/wallet/dto/ValidateBvnVerificationDto';
 import { defaultBankName } from 'src/constants';
+import { getAllISOCodes } from 'iso-country-currency';
 
 @Injectable()
 export class ApiProviderService {
@@ -27,6 +28,13 @@ export class ApiProviderService {
     private readonly safeHavenService: SafeHavenService,
     private readonly configService: ConfigService,
   ) {}
+
+  async validatePhoneNumber(phoneNumber: string, message: string) {
+    return this.dojahService.sendSms({
+      phoneNumber: this.addCountryCode(phoneNumber),
+      message,
+    });
+  }
 
   async getSafeHavenBankName(bankCode: string) {
     return this.safeHavenService.getBankName(bankCode);
@@ -119,12 +127,17 @@ export class ApiProviderService {
     });
   }
 
-  async createVirtualBusinessAccount(body: CreateBusinessAccountDto) {
-    return this.VFDBankService.createNoConsentBusinessVirtualAccount({
-      bvn: body?.bvn,
-      incorporationDate: body?.incorporationDate,
-      rcNumber: body?.rcNumber,
-      companyName: body?.companyName,
+  async createVirtualBusinessAccount(
+    bvn: string,
+    user: User,
+    body: CreateBusinessAccountDto,
+  ) {
+    return this.safeHavenService.createBusinessSubAccount({
+      phoneNumber: this.addCountryCode(user?.phoneNumber),
+      emailAddress: user?.email,
+      externalReference: user?.id,
+      bvn,
+      companyRegistrationNumber: body?.companyRegistrationNumber,
     });
   }
 
@@ -272,6 +285,10 @@ export class ApiProviderService {
     return this.reloadlyService.getOperator(operatorId);
   }
 
+  async getAutoDetectOperator(phone: number, countryisoCode: string) {
+    return this.reloadlyService.getAutoDetectOperator(phone, countryisoCode);
+  }
+
   async purchaseTopup(body: PayDto, email: string, trx_ref?: string) {
     return this.reloadlyService.payTopup({
       amount: body.amount,
@@ -283,6 +300,14 @@ export class ApiProviderService {
         number: body.phone,
       },
     });
+  }
+
+  async getAirtimeFxRate(amount: number, operatorId: number) {
+    return this.reloadlyService.getAirtimeFxRate(amount, operatorId);
+  }
+
+  async getGiftCardFxRate(amount: number, currency: string) {
+    return this.reloadlyService.getGiftCardFxRate(amount, currency);
   }
 
   async purchaseGiftcard(
@@ -355,22 +380,12 @@ export class ApiProviderService {
   }
 
   public getCountryCodeFromCurrency(currency: string): string | null {
-    const currencyToCountryCode: Record<string, string> = {
-      USD: 'US', // United States
-      GBP: 'GB', // United Kingdom
-      EUR: 'EU', // European Union
-      NGN: 'NG', // Nigeria
-      CAD: 'CA', // Canada
-      AUD: 'AU', // Australia
-      INR: 'IN', // India
-      JPY: 'JP', // Japan
-      CNY: 'CN', // China
-      CHF: 'CH', // Switzerland
-      ZAR: 'ZA', // South Africa
-      SGD: 'SG', // Singapore
-      NZD: 'NZ', // New Zealand
-    };
+    const allIsoCodes = getAllISOCodes();
 
-    return currencyToCountryCode[currency] || null;
+    const countryCode = allIsoCodes?.find(
+      (iso) => iso?.currency === currency.toUpperCase(),
+    );
+
+    return countryCode?.iso || null;
   }
 }

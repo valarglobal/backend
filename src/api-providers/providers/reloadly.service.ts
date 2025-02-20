@@ -78,6 +78,54 @@ export class ReloadlyService {
     return response?.data;
   }
 
+  async getAutoDetectOperator(phone: number, countryisoCode: string) {
+    const url =
+      this.AIRTIME_BASE_URL +
+      `/operators/auto-detect/phone/${phone}/countries/${countryisoCode}`;
+
+    const response = await axios.get(url, {
+      headers: await this.getHeaders(this.AIRTIME_BASE_URL),
+    });
+
+    if (response?.status !== 200)
+      throw new InternalServerErrorException('Failed to get operator');
+
+    return response?.data;
+  }
+
+  async getAirtimeFxRate(amount: number, operatorId: number) {
+    const url = this.AIRTIME_BASE_URL + '/operators/fx-rate';
+
+    const payload = {
+      amount,
+      operatorId,
+    };
+    const response = await axios.post(url, payload, {
+      headers: await this.getHeaders(this.AIRTIME_BASE_URL),
+    });
+
+    if (response?.status !== 200)
+      throw new InternalServerErrorException('Failed to get airtime fx rate');
+
+    return response?.data;
+  }
+
+  async getGiftCardFxRate(amount: number, currency: string) {
+    const url = this.GIFT_CARD_BASE_URL + '/fx-rate';
+    const response = await axios.get(url, {
+      headers: await this.getHeaders(this.GIFT_CARD_BASE_URL),
+      params: {
+        amount,
+        currencyCode: currency,
+      },
+    });
+
+    if (response?.status !== 200)
+      throw new InternalServerErrorException('Failed to get giftcard fx rate');
+
+    return response?.data;
+  }
+
   async payTopup(payload: {
     amount: number;
     operatorId: number;

@@ -72,6 +72,7 @@ enum USER_ROLE {
 enum BILL_TYPE {
   data
   airtime
+  internationalAirtime
   cable
   electricity
   internet

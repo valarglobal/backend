@@ -172,6 +172,16 @@ export class SafeHavenService {
     }
   }
 
+  async createBusinessSubAccount(body: safeHavenCreateBusinessAccount) {
+    try {
+      const token = await this.getAccessToken();
+
+      const url =
+        this.configService.get<string>('SAFEHAVEN_BASE_URL') +
+        '/accounts/v2/subaccount';
+    } catch (error) {}
+  }
+
   async getAllBanks() {
     const url =
       this.configService.get<string>('SAFEHAVEN_BASE_URL') + '/transfers/banks';
