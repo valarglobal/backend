@@ -1,4 +1,4 @@
-import { CURRENCY } from '@prisma/client';
+import { ACCOUNT_TYPE, CURRENCY } from '@prisma/client';
 import {
   IsEmail,
   IsEnum,
@@ -44,4 +44,8 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   referralCode?: string;
+
+  @IsOptional()
+  @IsEnum(ACCOUNT_TYPE)
+  accountType?: ACCOUNT_TYPE;
 }

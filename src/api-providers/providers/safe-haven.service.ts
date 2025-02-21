@@ -11,12 +11,12 @@ import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class SafeHavenService {
-  private accessTokenCache: {
-    accessToken: string;
-    ibsClientId: string;
-    issueTime: Date;
-    expireIn: number;
-  };
+  // private accessTokenCache: {
+  //   accessToken: string;
+  //   ibsClientId: string;
+  //   issueTime: Date;
+  //   expireIn: number;
+  // };
 
   constructor(
     private readonly configService: ConfigService,
@@ -59,14 +59,14 @@ export class SafeHavenService {
     }
 
     const data = response?.data;
-    if (data?.access_token && data?.expires_in) {
-      this.accessTokenCache = {
-        accessToken: data?.access_token,
-        ibsClientId: data?.ibs_client_id,
-        issueTime: new Date(),
-        expireIn: data?.expires_in,
-      };
-    }
+    // if (data?.access_token && data?.expires_in) {
+    //   this.accessTokenCache = {
+    //     accessToken: data?.access_token,
+    //     ibsClientId: data?.ibs_client_id,
+    //     issueTime: new Date(),
+    //     expireIn: data?.expires_in,
+    //   };
+    // }
 
     return {
       accessToken: data?.access_token,

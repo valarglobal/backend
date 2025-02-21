@@ -14,8 +14,7 @@ import { PayDto } from './dto/PayDto';
 import { GiftCardPayDto } from './dto/GiftCardPayDto';
 import { VerifyBillerDto } from './dto/VerifyBillerDto';
 import { PayBillDto } from './dto/PayBillDto';
-import { BILL_TYPE, NETWORK } from '@prisma/client';
-import { query } from 'express';
+import { BILL_TYPE } from '@prisma/client';
 
 @Controller('/v1/bill')
 export class BillController {

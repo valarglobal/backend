@@ -11,7 +11,7 @@ import { VerifyEmailDto } from './dto/VerifyEmailDto';
 import { EmailDto } from './dto/EmailDto';
 import { LoginDto } from './dto/LoginDto';
 import { PasscodeDto } from './dto/PasscodeDto';
-import { User } from '@prisma/client';
+import { ACCOUNT_TYPE, User } from '@prisma/client';
 import { PasscodeLoginDto } from './dto/PasscodeLoginDto';
 import { ResetPasswordDto } from './dto/ResetPasswordDto';
 import { RegisterBusinessDto } from './dto/RegisterBusinessDto';
@@ -58,6 +58,8 @@ export class AuthService {
           password: hashedPassword,
           referralCode: await this.generateReferralCode(),
           dateOfBirth: body.dateOfBirth,
+          accountType: body.accountType,
+          isBusiness: body.accountType === ACCOUNT_TYPE.BUSINESS ? true : false,
         };
 
         if (body.referralCode) {

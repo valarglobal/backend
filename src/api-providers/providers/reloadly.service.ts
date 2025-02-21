@@ -8,11 +8,11 @@ import axios from 'axios';
 
 @Injectable()
 export class ReloadlyService {
-  private accessTokenCache: {
-    accessToken: string;
-    issueTime: Date;
-    expireIn: number;
-  };
+  // private accessTokenCache: {
+  //   accessToken: string;
+  //   issueTime: Date;
+  //   expireIn: number;
+  // };
 
   AIRTIME_BASE_URL = 'https://topups.reloadly.com';
   GIFT_CARD_BASE_URL = 'https://giftcards.reloadly.com';
@@ -24,17 +24,17 @@ export class ReloadlyService {
   async getAccessToken(audience: string) {
     // check if we have a valid token that hasn't expired
 
-    if (this.accessTokenCache) {
-      const currentTime = new Date();
+    // if (this.accessTokenCache) {
+    //   const currentTime = new Date();
 
-      const tokenAge =
-        (currentTime.getTime() - this.accessTokenCache.issueTime.getTime()) /
-        1000;
+    //   const tokenAge =
+    //     (currentTime.getTime() - this.accessTokenCache.issueTime.getTime()) /
+    //     1000;
 
-      if (tokenAge < this.accessTokenCache.expireIn) {
-        return this.accessTokenCache;
-      }
-    }
+    //   if (tokenAge < this.accessTokenCache.expireIn) {
+    //     return this.accessTokenCache;
+    //   }
+    // }
 
     const url = this.AUTH_URL_BASE_URL + '/oauth/token';
 
@@ -52,13 +52,13 @@ export class ReloadlyService {
 
     const data = response?.data;
 
-    if (data?.access_token && data?.expires_in) {
-      this.accessTokenCache = {
-        accessToken: data?.access_token,
-        issueTime: new Date(),
-        expireIn: data?.expires_in,
-      };
-    }
+    // if (data?.access_token && data?.expires_in) {
+    //   this.accessTokenCache = {
+    //     accessToken: data?.access_token,
+    //     issueTime: new Date(),
+    //     expireIn: data?.expires_in,
+    //   };
+    // }
 
     return {
       accessToken: data?.access_token,
