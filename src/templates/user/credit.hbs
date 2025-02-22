@@ -1,0 +1,304 @@
+<html lang='en'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>Credit Alert - NattyPay</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+        color: #333333;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      .email-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+
+      .header img {
+        width: 100%;
+        display: block;
+        height: auto;
+      }
+
+      .content {
+        padding: 24px 20px;
+      }
+
+      .greeting {
+        font-size: 22px;
+        margin-bottom: 16px;
+        font-weight: 600;
+      }
+
+      .message {
+        font-size: 14px;
+        line-height: 1.6;
+        margin: 15px 0;
+        color: #555;
+      }
+
+      .credited-amount {
+        background-color: #c5a030;
+        color: #1d1d1d;
+        text-align: center;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 24px 0;
+      }
+
+      .credited-amount h3 {
+        font-size: 16px;
+        margin: 0;
+        font-weight: normal;
+        opacity: 0.9;
+      }
+
+      .credited-amount p {
+        font-size: 32px;
+        font-weight: bold;
+        margin: 8px 0 0;
+      }
+
+      .transaction-details {
+        background-color: #f9f9f9;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 24px;
+      }
+
+      .transaction-details h2 {
+        margin-bottom: 20px;
+        font-size: 18px;
+        color: #333;
+      }
+
+      .detail-row {
+        border-bottom: 1px solid #eee;
+      }
+
+      .detail-row:last-child {
+        border-bottom: none;
+      }
+
+      .support-info {
+        margin-top: 24px;
+        text-align: center;
+        font-size: 14px;
+        color: #666;
+        line-height: 1.6;
+      }
+
+      .support-info a {
+        color: #c5a030;
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .footer {
+        text-align: center;
+        padding: 24px 20px;
+        margin-top: 24px;
+        font-size: 12px;
+        color: #666;
+        border-top: 1px solid #eee;
+      }
+
+      @media screen and (max-width: 600px) {
+        .transaction-details {
+          background-color: #1a1a1a;
+        }
+
+        .transaction-details h2 {
+          color: #fff;
+        }
+
+        .detail-row {
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .detail-label {
+          color: #888 !important;
+        }
+
+        .detail-value {
+          color: #fff !important;
+        }
+
+        .email-container {
+          margin: 0;
+          border-radius: 0;
+        }
+
+        body {
+          background-color: #1a1a1a;
+        }
+
+        .content {
+          padding: 20px 16px;
+          color: #fff;
+        }
+
+        .greeting {
+          color: #fff;
+        }
+
+        .message {
+          color: #888;
+        }
+
+        .support-info {
+          color: #888;
+        }
+
+        .footer {
+          color: #888;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class='email-container'>
+      <div class='header'>
+        <img
+          src='https://res.cloudinary.com/dyklkieao/image/upload/v1740137369/%CE%93_%C3%AB_%C3%85_Emailify_Template_Debit_cover-1_zuzrkn.png'
+          alt='Credit Alert Header'
+        />
+      </div>
+
+      <div class='content'>
+        <div class='greeting'>Hello {{accountName}}</div>
+        <p class='message'>
+          Your account has been credited with ₦{{amount}}. This transaction has
+          been successfully processed and the amount has been added to your
+          account balance. If this transaction was not expected or initiated by
+          you, please contact our customer support team immediately for
+          assistance.
+        </p>
+
+        <div class='credited-amount'>
+          <h3>Credited Amount</h3>
+          <p>₦{{amount}}</p>
+        </div>
+
+        <div class='transaction-details'>
+          <h2>Transaction details</h2>
+          <table
+            cellpadding='0'
+            cellspacing='0'
+            style='width: 100%; border-collapse: collapse;'
+          >
+            <tr class='detail-row'>
+              <td
+                class='detail-label'
+                style='padding: 15px 0; color: #888; font-size: 14px;'
+              >Account Name</td>
+              <td
+                class='detail-value'
+                style='padding: 15px 0; text-align: right; color: #333; font-size: 14px;'
+              >{{accountName}}</td>
+            </tr>
+            <tr class='detail-row'>
+              <td
+                class='detail-label'
+                style='padding: 15px 0; color: #888; font-size: 14px;'
+              >Transaction Type</td>
+              <td
+                class='detail-value'
+                style='padding: 15px 0; text-align: right; color: #333; font-size: 14px;'
+              >CREDIT ALERT</td>
+            </tr>
+            <tr class='detail-row'>
+              <td
+                class='detail-label'
+                style='padding: 15px 0; color: #888; font-size: 14px;'
+              >Transaction Amount</td>
+              <td
+                class='detail-value'
+                style='padding: 15px 0; text-align: right; color: #333; font-size: 14px;'
+              >₦{{amount}}</td>
+            </tr>
+            <tr class='detail-row'>
+              <td
+                class='detail-label'
+                style='padding: 15px 0; color: #888; font-size: 14px;'
+              >Account Number</td>
+              <td
+                class='detail-value'
+                style='padding: 15px 0; text-align: right; color: #333; font-size: 14px;'
+              >{{accountNumber}}</td>
+            </tr>
+            <tr class='detail-row'>
+              <td
+                class='detail-label'
+                style='padding: 15px 0; color: #888; font-size: 14px;'
+              >Sender's Name</td>
+              <td
+                class='detail-value'
+                style='padding: 15px 0; text-align: right; color: #333; font-size: 14px;'
+              >{{accountName}}</td>
+            </tr>
+            <tr class='detail-row'>
+              <td
+                class='detail-label'
+                style='padding: 15px 0; color: #888; font-size: 14px;'
+              >Date & Time</td>
+              <td
+                class='detail-value'
+                style='padding: 15px 0; text-align: right; color: #333; font-size: 14px;'
+              >{{dateAndTime}}</td>
+            </tr>
+            <tr class='detail-row'>
+              <td
+                class='detail-label'
+                style='padding: 15px 0; color: #888; font-size: 14px;'
+              >Narration</td>
+              <td
+                class='detail-value'
+                style='padding: 15px 0; text-align: right; color: #333; font-size: 14px;'
+              >{{narration}}</td>
+            </tr>
+            <tr class='detail-row'>
+              <td
+                class='detail-label'
+                style='padding: 15px 0; color: #888; font-size: 14px;'
+              >Available Balance</td>
+              <td
+                class='detail-value'
+                style='padding: 15px 0; text-align: right; color: #333; font-size: 14px;'
+              >₦{{availableBalance}}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class='support-info'>
+          If you experience any problems kindly contact us at
+          <a href='mailto:support@nattypay.com'>support@nattypay.com</a>
+          or send us a WhatsApp message at
+          <a href='tel:+2348134146906'>+234 813 414 6906</a>
+        </div>
+
+        <div class='footer'>
+          ©
+          {{year}}
+          NattyPay. All Rights Reserved.
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

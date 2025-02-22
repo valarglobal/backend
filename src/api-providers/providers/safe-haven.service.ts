@@ -7,6 +7,7 @@ import {
 } from '@prisma/client';
 import axios from 'axios';
 import { defaultBankName } from 'src/constants';
+import { EmailService } from 'src/email/email.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
@@ -21,6 +22,7 @@ export class SafeHavenService {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
   ) {}
 
   async getAccessToken(refreshToken?: string) {
@@ -303,6 +305,9 @@ export class SafeHavenService {
         where: {
           accountNumber: eventData?.creditAccountNumber,
         },
+        include: {
+          user: true,
+        },
       });
 
       if (!wallet) throw new InternalServerErrorException('Wallet not found');
@@ -361,6 +366,52 @@ export class SafeHavenService {
           },
         },
       });
+
+      try {
+        //send credit alert email
+        const accountNum = wallet.accountNumber;
+        const maskedAccountNumber = `${accountNum.substring(0, 1)}xxx..${accountNum.substring(accountNum.length - 4, accountNum.length - 1)}x`;
+
+        const now = new Date();
+        const formattedDate = now.toLocaleString('en-US', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        });
+
+        this.emailService.sendEmail({
+          to: wallet?.user?.email,
+          subject: 'Credit Alert',
+          template: 'user/credit.hbs',
+          context: {
+            amount: new Intl.NumberFormat('en-US', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }).format(body.amount),
+            accountName: wallet.accountName
+              .split('/')[1]
+              .split(' ')
+              .map(
+                (word) =>
+                  word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+              )
+              .join(' '),
+            accountNumber: maskedAccountNumber,
+            dateAndTime: formattedDate,
+            narration: body.description || '',
+            availableBalance: new Intl.NumberFormat('en-US', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }).format(wallet.balance),
+            year: new Date().getFullYear(),
+          },
+        });
+      } catch (error) {
+        console.log('Error sending transfer alert', error);
+      }
 
       console.log('finish');
     } catch (error) {

@@ -7,9 +7,10 @@ import { PrismaModule } from 'src/prisma/prisma.module';
 import { WalletModule } from 'src/wallet/wallet.module';
 import { ReloadlyService } from './providers/reloadly.service';
 import { VFDBankService } from './providers/VFDBank.service';
+import { EmailModule } from 'src/email/email.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, EmailModule],
   providers: [
     SafeHavenService,
     ApiProviderService,

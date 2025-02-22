@@ -36,12 +36,14 @@ import {
 import * as bcrypt from 'bcrypt';
 import { Jimp } from 'jimp';
 import jsQR from 'jsqr';
+import { EmailService } from 'src/email/email.service';
 
 @Injectable()
 export class WalletService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly apiProvider: ApiProviderService,
+    private readonly emailService: EmailService,
   ) {}
 
   async getAllBanks(currency: string) {
@@ -666,6 +668,52 @@ export class WalletService {
           ]);
         });
 
+        try {
+          //send debit alert email
+          const accountNum = fromWallet.accountNumber;
+          const maskedAccountNumber = `${accountNum.substring(0, 1)}xxx..${accountNum.substring(accountNum.length - 4, accountNum.length - 1)}x`;
+
+          const now = new Date();
+          const formattedDate = now.toLocaleString('en-US', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+          });
+
+          this.emailService.sendEmail({
+            to: user.email,
+            subject: 'Debit Alert',
+            template: 'user/debit.hbs',
+            context: {
+              amount: new Intl.NumberFormat('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }).format(body.amount),
+              accountName: fromWallet.accountName
+                .split('/')[1]
+                .split(' ')
+                .map(
+                  (word) =>
+                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+                )
+                .join(' '),
+              accountNumber: maskedAccountNumber,
+              dateAndTime: formattedDate,
+              narration: body.description || '',
+              availableBalance: new Intl.NumberFormat('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }).format(fromWallet.balance),
+              year: new Date().getFullYear(),
+            },
+          });
+        } catch (error) {
+          console.log('Error sending transfer alert', error);
+        }
+
         return {
           message: 'Transfer initiated successfully',
           statusCode: HttpStatus.OK,
@@ -820,6 +868,52 @@ export class WalletService {
           },
         );
 
+        try {
+          //send debit alert email
+          const accountNum = fromWallet.accountNumber;
+          const maskedAccountNumber = `${accountNum.substring(0, 1)}xxx..${accountNum.substring(accountNum.length - 4, accountNum.length - 1)}x`;
+
+          const now = new Date();
+          const formattedDate = now.toLocaleString('en-US', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+          });
+
+          this.emailService.sendEmail({
+            to: user.email,
+            subject: 'Debit Alert',
+            template: 'user/debit.hbs',
+            context: {
+              amount: new Intl.NumberFormat('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }).format(body.amount),
+              accountName: fromWallet.accountName
+                .split('/')[1]
+                .split(' ')
+                .map(
+                  (word) =>
+                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+                )
+                .join(' '),
+              accountNumber: maskedAccountNumber,
+              dateAndTime: formattedDate,
+              narration: body.description || '',
+              availableBalance: new Intl.NumberFormat('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }).format(fromWallet.balance),
+              year: new Date().getFullYear(),
+            },
+          });
+        } catch (error) {
+          console.log('Error sending transfer alert', error);
+        }
+
         return {
           message: 'Transfer initiated successfully',
           statusCode: HttpStatus.OK,
@@ -896,7 +990,7 @@ export class WalletService {
       );
 
     // check for minimum amount to transfer
-    this.checkforMinimumAndMaximumAmount(body.currency, body.amount, user);
+    // this.checkforMinimumAndMaximumAmount(body.currency, body.amount, user);
 
     const toWallet = await this.prisma.wallet.findFirst({
       where: {
