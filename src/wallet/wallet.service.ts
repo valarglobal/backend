@@ -670,8 +670,8 @@ export class WalletService {
 
         try {
           //send debit alert email
-          const accountNum = fromWallet.accountNumber;
-          const maskedAccountNumber = `${accountNum.substring(0, 1)}xxx..${accountNum.substring(accountNum.length - 4, accountNum.length - 1)}x`;
+          const accountNum = toWallet.accountNumber;
+          const maskedAccountNumber = `${accountNum.substring(0, 2)}xxx..${accountNum.substring(accountNum.length - 4, accountNum.length - 1)}x`;
 
           const now = new Date();
           const formattedDate = now.toLocaleString('en-US', {
@@ -702,6 +702,7 @@ export class WalletService {
                 .join(' '),
               accountNumber: maskedAccountNumber,
               dateAndTime: formattedDate,
+              receipientName: toWallet?.accountName,
               narration: body.description || '',
               availableBalance: new Intl.NumberFormat('en-US', {
                 minimumFractionDigits: 2,
@@ -870,8 +871,8 @@ export class WalletService {
 
         try {
           //send debit alert email
-          const accountNum = fromWallet.accountNumber;
-          const maskedAccountNumber = `${accountNum.substring(0, 1)}xxx..${accountNum.substring(accountNum.length - 4, accountNum.length - 1)}x`;
+          const accountNum = transferData?.creditAccountNumber;
+          const maskedAccountNumber = `${accountNum.substring(0, 2)}xxx..${accountNum.substring(accountNum.length - 4, accountNum.length - 1)}x`;
 
           const now = new Date();
           const formattedDate = now.toLocaleString('en-US', {
@@ -902,6 +903,7 @@ export class WalletService {
                 .join(' '),
               accountNumber: maskedAccountNumber,
               dateAndTime: formattedDate,
+              receipientName: transferData?.creditAccountName,
               narration: body.description || '',
               availableBalance: new Intl.NumberFormat('en-US', {
                 minimumFractionDigits: 2,

@@ -369,8 +369,8 @@ export class SafeHavenService {
 
       try {
         //send credit alert email
-        const accountNum = wallet.accountNumber;
-        const maskedAccountNumber = `${accountNum.substring(0, 1)}xxx..${accountNum.substring(accountNum.length - 4, accountNum.length - 1)}x`;
+        const accountNum = eventData?.debitAccountNumber;
+        const maskedAccountNumber = `${accountNum.substring(0, 2)}xxx..${accountNum.substring(accountNum.length - 4, accountNum.length - 1)}x`;
 
         const now = new Date();
         const formattedDate = now.toLocaleString('en-US', {
@@ -390,7 +390,7 @@ export class SafeHavenService {
             amount: new Intl.NumberFormat('en-US', {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
-            }).format(body.amount),
+            }).format(eventData?.amount),
             accountName: wallet.accountName
               .split('/')[1]
               .split(' ')
@@ -400,6 +400,7 @@ export class SafeHavenService {
               )
               .join(' '),
             accountNumber: maskedAccountNumber,
+            senderName: eventData?.debitAccountName,
             dateAndTime: formattedDate,
             narration: body.description || '',
             availableBalance: new Intl.NumberFormat('en-US', {
