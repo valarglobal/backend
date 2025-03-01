@@ -119,7 +119,11 @@ model User {
   bvn String?
 
   isNinVerified Boolean @default(false)
+  isAddressVerified Boolean @default(false)
   nin String?
+  address String?
+  state String?
+  city String?
   selfieBase64Image String?
   accountType ACCOUNT_TYPE @default(PERSONAL)
 
@@ -334,7 +338,7 @@ model InternetservicePlan {
 }
 
 
-model  TransportPlan {
+model TransportPlan {
   id   String @id @default(uuid()) @db.Uuid
 
   planName String?

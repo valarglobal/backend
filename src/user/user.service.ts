@@ -15,6 +15,7 @@ import {
   TIER_LEVEL,
   Transaction,
   TRANSACTION_CATEGORY,
+  TRANSACTION_STATUS,
   TRANSACTION_TYPE,
   User,
   Wallet,
@@ -116,6 +117,7 @@ export class UserService {
         where: {
           walletId: wallet?.id,
           type: TRANSACTION_TYPE.CREDIT,
+          status: TRANSACTION_STATUS.success,
           createdAt: {
             gte: startOfDay(subDays(new Date(), 7)),
           },
@@ -127,6 +129,7 @@ export class UserService {
         where: {
           walletId: wallet?.id,
           type: TRANSACTION_TYPE.DEBIT,
+          status: TRANSACTION_STATUS.success,
           createdAt: {
             gte: startOfDay(subDays(new Date(), 7)),
           },
@@ -224,6 +227,7 @@ export class UserService {
     const transactions = await this.prisma.transaction.findMany({
       where: {
         walletId: user.wallet.id,
+        status: TRANSACTION_STATUS.success,
         ...(dateFilter && {
           createdAt: {
             gte: dateFilter,
@@ -893,6 +897,7 @@ export class UserService {
       {
         sub: user?.id,
         otpCode,
+        phoneNumber: body.phoneNumber,
       },
       {
         secret: this.configService.get('JWT_SECRET'),
@@ -905,10 +910,9 @@ export class UserService {
       data: { otpToken },
     });
 
-    const res = await this.apiProvider.validatePhoneNumber(
-      body.phoneNumber,
-      `otp code is ${otpCode}`,
-    );
+    const otpMessage = `Your NattyPay verification code is ${otpCode}. Valid for 10 minutes. Do not share this code with anyone.`;
+
+    const res = await this.apiProvider.sendSms(body.phoneNumber, otpMessage);
 
     return {
       message: 'Otp code sent to your phone number',
@@ -917,7 +921,32 @@ export class UserService {
     };
   }
 
-  async verifyPhoneNumber(body: VerifyPhoneNumberDto) {}
+  async verifyPhoneNumber(body: VerifyPhoneNumberDto) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        email: body.email,
+      },
+    });
+
+    if (!user) throw new NotFoundException('User with email not found');
+
+    const decoded = await this.jwtService.verifyAsync(user?.otpToken, {
+      secret: this.configService.get('JWT_SECRET'),
+    });
+
+    if (decoded?.otpCode !== body.otp)
+      throw new BadRequestException('Invalid otp code');
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { isPhoneVerified: true, phoneNumber: decoded?.phoneNumber },
+    });
+
+    return {
+      message: 'Phone number verified successfully',
+      statusCode: HttpStatus.OK,
+    };
+  }
 
   async verifyTier2Kyc(body: KycTier2Dto, user: User) {
     let res: any;
@@ -970,6 +999,7 @@ export class UserService {
       },
       data: {
         nin: body.nin,
+        isNinVerified: true,
         tierLevel: TIER_LEVEL.two,
         dailyCummulativeTransactionLimit:
           TIER_TWO_DAILY_CUMMULATIVE_TRANSACTION_LIMIT,
@@ -1012,6 +1042,10 @@ export class UserService {
         id: user?.id,
       },
       data: {
+        address: body?.address,
+        state: body?.state,
+        city: body?.city,
+        isAddressVerified: true,
         tierLevel: TIER_LEVEL.three,
         dailyCummulativeTransactionLimit:
           TIER_THREE_DAILY_CUMMULATIVE_TRANSACTION_LIMIT,

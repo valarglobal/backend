@@ -261,6 +261,7 @@ export class SafeHavenService {
       throw error;
     }
 
+    console.log('response from transfer', response?.data);
     if (response.status !== 201) {
       throw new InternalServerErrorException('Failed to transfer fund');
     }
@@ -380,6 +381,7 @@ export class SafeHavenService {
           hour: '2-digit',
           minute: '2-digit',
           hour12: true,
+          timeZone: 'Africa/Lagos',
         });
 
         this.emailService.sendEmail({
@@ -402,11 +404,11 @@ export class SafeHavenService {
             accountNumber: maskedAccountNumber,
             senderName: eventData?.debitAccountName,
             dateAndTime: formattedDate,
-            narration: body.description || '',
+            narration: eventData?.narration || '',
             availableBalance: new Intl.NumberFormat('en-US', {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
-            }).format(wallet.balance),
+            }).format(newBalance),
             year: new Date().getFullYear(),
           },
         });

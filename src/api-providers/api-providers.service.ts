@@ -29,7 +29,7 @@ export class ApiProviderService {
     private readonly configService: ConfigService,
   ) {}
 
-  async validatePhoneNumber(phoneNumber: string, message: string) {
+  async sendSms(phoneNumber: string, message: string) {
     return this.dojahService.sendSms({
       phoneNumber: this.addCountryCode(phoneNumber),
       message,

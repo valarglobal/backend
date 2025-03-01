@@ -37,6 +37,8 @@ import * as bcrypt from 'bcrypt';
 import { Jimp } from 'jimp';
 import jsQR from 'jsqr';
 import { EmailService } from 'src/email/email.service';
+import getDebitSMSMessage from 'src/utils/debitSms';
+import getSMSAlertMessage from 'src/utils';
 
 @Injectable()
 export class WalletService {
@@ -614,12 +616,15 @@ export class WalletService {
             this.addbalance(locktoWallet[0], body.amount, trx),
           ]);
 
+          const debitTrxRef = this.generateTransactionRef('DEBIT');
+          const creditTrxRef = this.generateTransactionRef('CREDIT');
+
           await Promise.all([
             // create a debit transaction for fromWallet
             trx.transaction.create({
               data: {
                 walletId: fromWallet.id,
-                transactionRef: this.generateTransactionRef('DEBIT'),
+                transactionRef: debitTrxRef,
                 type: TRANSACTION_TYPE.DEBIT,
                 currency: body.currency,
                 status: TRANSACTION_STATUS.success,
@@ -644,7 +649,7 @@ export class WalletService {
             trx.transaction.create({
               data: {
                 walletId: toWallet.id,
-                transactionRef: this.generateTransactionRef('CREDIT'),
+                transactionRef: creditTrxRef,
                 type: TRANSACTION_TYPE.CREDIT,
                 category: TRANSACTION_CATEGORY.DEPOSIT,
                 currency: body.currency,
@@ -666,54 +671,145 @@ export class WalletService {
               },
             }),
           ]);
+
+          try {
+            //send debit alert email
+            const accountNum = toWallet.accountNumber;
+            const maskedAccountNumber = `${accountNum.substring(0, 2)}xxx..${accountNum.substring(accountNum.length - 4, accountNum.length - 1)}x`;
+
+            const amount = new Intl.NumberFormat('en-US', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }).format(body.amount);
+
+            const now = new Date();
+            const formattedDate = now.toLocaleString('en-US', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true,
+            });
+
+            //send debit email alert
+            this.emailService.sendEmail({
+              to: user.email,
+              subject: 'Debit Alert',
+              template: 'user/debit.hbs',
+              context: {
+                amount,
+                accountName: fromWallet.accountName
+                  .split('/')[1]
+                  .split(' ')
+                  .map(
+                    (word) =>
+                      word.charAt(0).toUpperCase() +
+                      word.slice(1).toLowerCase(),
+                  )
+                  .join(' '),
+                accountNumber: maskedAccountNumber,
+                dateAndTime: formattedDate,
+                receipientName: toWallet?.accountName,
+                reference: debitTrxRef,
+                narration: body.description || '',
+                availableBalance: new Intl.NumberFormat('en-US', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }).format(fromWalletNewBalance),
+                year: new Date().getFullYear(),
+              },
+            });
+
+            //send debit sms alert
+            // this.apiProvider.sendSms(
+            //   user.phoneNumber,
+            //   getSMSAlertMessage(
+            //     amount,
+            //     toWallet?.accountName,
+            //     fromWallet?.accountName,
+            //     debitTrxRef,
+            //     formattedDate,
+            //     fromWalletNewBalance,
+            //     'transfer',
+            //     {
+            //       isCredit: false,
+            //     },
+            //   ),
+            // );
+          } catch (error) {
+            console.log('Error sending debit transfer alert', error);
+          }
+
+          try {
+            //send credit alert email
+            const accountNum = fromWallet.accountNumber;
+            const maskedAccountNumber = `${accountNum.substring(0, 2)}xxx..${accountNum.substring(accountNum.length - 4, accountNum.length - 1)}x`;
+
+            const amount = new Intl.NumberFormat('en-US', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }).format(body.amount);
+
+            const now = new Date();
+            const formattedDate = now.toLocaleString('en-US', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true,
+            });
+
+            //send credit email alert
+            this.emailService.sendEmail({
+              to: user.email,
+              subject: 'Credit Alert',
+              template: 'user/credit.hbs',
+              context: {
+                amount,
+                accountName: toWallet.accountName
+                  .split('/')[1]
+                  .split(' ')
+                  .map(
+                    (word) =>
+                      word.charAt(0).toUpperCase() +
+                      word.slice(1).toLowerCase(),
+                  )
+                  .join(' '),
+                accountNumber: maskedAccountNumber,
+                dateAndTime: formattedDate,
+                senderName: fromWallet?.accountName,
+                reference: creditTrxRef,
+                narration: body.description || '',
+                availableBalance: new Intl.NumberFormat('en-US', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }).format(toWalletNewBalance),
+                year: new Date().getFullYear(),
+              },
+            });
+
+            //send credit sms alert
+            // this.apiProvider.sendSms(
+            //   user.phoneNumber,
+            //   getSMSAlertMessage(
+            //     amount,
+            //     toWallet?.accountName,
+            //     fromWallet?.accountName,
+            //     creditTrxRef,
+            //     formattedDate,
+            //     toWalletNewBalance,
+            //     'transfer',
+            //     {
+            //       isCredit: true,
+            //     },
+            //   ),
+            // );
+          } catch (error) {
+            console.log('Error sending credit transfer alert', error);
+          }
         });
-
-        try {
-          //send debit alert email
-          const accountNum = toWallet.accountNumber;
-          const maskedAccountNumber = `${accountNum.substring(0, 2)}xxx..${accountNum.substring(accountNum.length - 4, accountNum.length - 1)}x`;
-
-          const now = new Date();
-          const formattedDate = now.toLocaleString('en-US', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true,
-          });
-
-          this.emailService.sendEmail({
-            to: user.email,
-            subject: 'Debit Alert',
-            template: 'user/debit.hbs',
-            context: {
-              amount: new Intl.NumberFormat('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }).format(body.amount),
-              accountName: fromWallet.accountName
-                .split('/')[1]
-                .split(' ')
-                .map(
-                  (word) =>
-                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
-                )
-                .join(' '),
-              accountNumber: maskedAccountNumber,
-              dateAndTime: formattedDate,
-              receipientName: toWallet?.accountName,
-              narration: body.description || '',
-              availableBalance: new Intl.NumberFormat('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }).format(fromWallet.balance),
-              year: new Date().getFullYear(),
-            },
-          });
-        } catch (error) {
-          console.log('Error sending transfer alert', error);
-        }
 
         return {
           message: 'Transfer initiated successfully',
@@ -838,11 +934,12 @@ export class WalletService {
               }
             }
 
+            const trxRef = this.generateTransactionRef('DEBIT');
             // create a debit transaction
             await trx.transaction.create({
               data: {
                 walletId: fromWallet.id,
-                transactionRef: this.generateTransactionRef('DEBIT'),
+                transactionRef: trxRef,
                 type: TRANSACTION_TYPE.DEBIT,
                 currency: body.currency,
                 status: TRANSACTION_STATUS.success,
@@ -862,59 +959,81 @@ export class WalletService {
                 },
               },
             });
+
+            try {
+              //send debit alert email
+              const accountNum = transferData?.creditAccountNumber;
+              const maskedAccountNumber = `${accountNum.substring(0, 2)}xxx..${accountNum.substring(accountNum.length - 4, accountNum.length - 1)}x`;
+
+              const amount = new Intl.NumberFormat('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }).format(body.amount);
+
+              const now = new Date();
+              const formattedDate = now.toLocaleString('en-US', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true,
+                timeZone: 'Africa/Lagos',
+              });
+
+              this.emailService.sendEmail({
+                to: user.email,
+                subject: 'Debit Alert',
+                template: 'user/debit.hbs',
+                context: {
+                  amount,
+                  accountName: fromWallet.accountName
+                    .split('/')[1]
+                    .split(' ')
+                    .map(
+                      (word) =>
+                        word.charAt(0).toUpperCase() +
+                        word.slice(1).toLowerCase(),
+                    )
+                    .join(' '),
+                  accountNumber: maskedAccountNumber,
+                  dateAndTime: formattedDate,
+                  receipientName: transferData?.creditAccountName,
+                  narration: body.description || '',
+                  reference: trxRef,
+                  availableBalance: new Intl.NumberFormat('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  }).format(fromWalletNewBalance),
+                  year: new Date().getFullYear(),
+                },
+              });
+
+              //send debit sms alert
+              // this.apiProvider.sendSms(
+              //   user.phoneNumber,
+              //   getSMSAlertMessage(
+              //     amount,
+              //     transferData?.creditAccountName,
+              //     fromWallet?.accountName,
+              //     trxRef,
+              //     formattedDate,
+              //     fromWalletNewBalance,
+              //     'transfer',
+              //     {
+              //       isCredit: false,
+              //     },
+              //   ),
+              // );
+            } catch (error) {
+              console.log('Error sending transfer alert', error);
+            }
           },
           {
             isolationLevel: 'Serializable',
             timeout: 20000,
           },
         );
-
-        try {
-          //send debit alert email
-          const accountNum = transferData?.creditAccountNumber;
-          const maskedAccountNumber = `${accountNum.substring(0, 2)}xxx..${accountNum.substring(accountNum.length - 4, accountNum.length - 1)}x`;
-
-          const now = new Date();
-          const formattedDate = now.toLocaleString('en-US', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true,
-          });
-
-          this.emailService.sendEmail({
-            to: user.email,
-            subject: 'Debit Alert',
-            template: 'user/debit.hbs',
-            context: {
-              amount: new Intl.NumberFormat('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }).format(body.amount),
-              accountName: fromWallet.accountName
-                .split('/')[1]
-                .split(' ')
-                .map(
-                  (word) =>
-                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
-                )
-                .join(' '),
-              accountNumber: maskedAccountNumber,
-              dateAndTime: formattedDate,
-              receipientName: transferData?.creditAccountName,
-              narration: body.description || '',
-              availableBalance: new Intl.NumberFormat('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }).format(fromWallet.balance),
-              year: new Date().getFullYear(),
-            },
-          });
-        } catch (error) {
-          console.log('Error sending transfer alert', error);
-        }
 
         return {
           message: 'Transfer initiated successfully',
