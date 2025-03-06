@@ -9,6 +9,9 @@ import axios from 'axios';
 import { defaultBankName } from 'src/constants';
 import { EmailService } from 'src/email/email.service';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { ApiProviderService } from '../api-providers.service';
+import getSMSAlertMessage from 'src/utils';
+import { DojahService } from './dojah.service';
 
 @Injectable()
 export class SafeHavenService {
@@ -23,6 +26,7 @@ export class SafeHavenService {
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
+    private readonly dojahService: DojahService,
   ) {}
 
   async getAccessToken(refreshToken?: string) {
@@ -370,8 +374,15 @@ export class SafeHavenService {
 
       try {
         //send credit alert email
-        const accountNum = eventData?.debitAccountNumber;
-        const maskedAccountNumber = `${accountNum.substring(0, 2)}xxx..${accountNum.substring(accountNum.length - 4, accountNum.length - 1)}x`;
+        const accountSNum = eventData?.debitAccountNumber;
+        const accountRNum = wallet.accountNumber;
+        const maskedSAccountNumber = `${accountSNum.substring(0, 2)}xxx..${accountSNum.substring(accountSNum.length - 4, accountSNum.length - 1)}x`;
+        const maskedRAccountNumber = `${accountRNum.substring(0, 2)}xxx..${accountRNum.substring(accountRNum.length - 4, accountRNum.length - 1)}x`;
+
+        const amount = new Intl.NumberFormat('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(eventData?.amount);
 
         const now = new Date();
         const formattedDate = now.toLocaleString('en-US', {
@@ -389,10 +400,7 @@ export class SafeHavenService {
           subject: 'Credit Alert',
           template: 'user/credit.hbs',
           context: {
-            amount: new Intl.NumberFormat('en-US', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            }).format(eventData?.amount),
+            amount,
             accountName: wallet.accountName
               .split('/')[1]
               .split(' ')
@@ -401,19 +409,40 @@ export class SafeHavenService {
                   word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
               )
               .join(' '),
-            accountNumber: maskedAccountNumber,
+            accountNumber: maskedSAccountNumber,
             senderName: eventData?.debitAccountName,
             dateAndTime: formattedDate,
             narration: eventData?.narration || '',
+            reference: eventData?.paymentReference,
             availableBalance: new Intl.NumberFormat('en-US', {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
-            }).format(newBalance),
+            }).format(Number(newBalance.toFixed(2))),
             year: new Date().getFullYear(),
           },
         });
+
+        //send credit sms alert
+        this.dojahService.sendSms({
+          phoneNumber: wallet.user.phoneNumber,
+          message: getSMSAlertMessage(
+            amount,
+            wallet?.accountName,
+            eventData?.debitAccountName,
+            eventData?.paymentReference,
+            formattedDate,
+            newBalance,
+            'transfer',
+            {
+              isCredit: true,
+            },
+            maskedSAccountNumber,
+            maskedRAccountNumber,
+            senderBankName.toUpperCase(),
+          ),
+        });
       } catch (error) {
-        console.log('Error sending transfer alert', error);
+        console.log('Error sending deposit alert', error);
       }
 
       console.log('finish');

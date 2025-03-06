@@ -912,7 +912,13 @@ export class UserService {
 
     const otpMessage = `Your NattyPay verification code is ${otpCode}. Valid for 10 minutes. Do not share this code with anyone.`;
 
-    const res = await this.apiProvider.sendSms(body.phoneNumber, otpMessage);
+    let res: any;
+    try {
+      res = await this.apiProvider.sendSms(body.phoneNumber, otpMessage);
+    } catch (error) {
+      console.log('error sending sms', error);
+      throw error;
+    }
 
     return {
       message: 'Otp code sent to your phone number',

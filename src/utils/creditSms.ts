@@ -1,11 +1,14 @@
 const getTransferCreditSMSMessage = (
   amount: string,
   sender: string,
-  trxId: string,
+  _trxId: string,
   date: string,
   balance: number,
+  accountNumber: string,
+  senderAccountNumber: string,
+  senderBankName: string,
 ): string => {
-  return `[CREDIT] Your account has been credited with ${amount}. Sender: ${sender}. Desc: Transfer Received. Txn ID: ${trxId}. Date: ${date}. Bal: ${balance}.`;
+  return `CREDIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nSender: ${sender} ${senderAccountNumber}\nDesc: TRANSFER RECEIVED FROM ${senderBankName}\nBal: ${balance}\nDate: ${date}`;
 };
 
 const getRefundCreditSMSMessage = (
@@ -28,6 +31,9 @@ export default function getCreditSMSMessage(
     date: string;
     balance: number;
     validity?: string;
+    accountNumber?: string;
+    senderAccountNumber?: string;
+    senderBankName?: string;
   },
 ) {
   switch (type) {
@@ -38,6 +44,9 @@ export default function getCreditSMSMessage(
         data.trxId,
         data.date,
         data.balance,
+        data.accountNumber,
+        data.senderAccountNumber,
+        data.senderBankName,
       );
     case 'refund':
       return getRefundCreditSMSMessage(

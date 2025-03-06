@@ -672,15 +672,17 @@ export class WalletService {
             }),
           ]);
 
+          const RAccountNumber = toWallet.accountNumber;
+          const SAccountNUmber = fromWallet.accountNumber;
+          const maskedRAccountNumber = `${RAccountNumber.substring(0, 2)}xxx..${RAccountNumber.substring(RAccountNumber.length - 4, RAccountNumber.length - 1)}x`;
+          const maskedSAccountNumber = `${SAccountNUmber.substring(0, 2)}xxx..${SAccountNUmber.substring(SAccountNUmber.length - 4, SAccountNUmber.length - 1)}x`;
+
           try {
             //send debit alert email
-            const accountNum = toWallet.accountNumber;
-            const maskedAccountNumber = `${accountNum.substring(0, 2)}xxx..${accountNum.substring(accountNum.length - 4, accountNum.length - 1)}x`;
-
             const amount = new Intl.NumberFormat('en-US', {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
-            }).format(body.amount);
+            }).format(Number(body.amount.toFixed(2)));
 
             const now = new Date();
             const formattedDate = now.toLocaleString('en-US', {
@@ -708,7 +710,7 @@ export class WalletService {
                       word.slice(1).toLowerCase(),
                   )
                   .join(' '),
-                accountNumber: maskedAccountNumber,
+                accountNumber: maskedRAccountNumber,
                 dateAndTime: formattedDate,
                 receipientName: toWallet?.accountName,
                 reference: debitTrxRef,
@@ -716,36 +718,36 @@ export class WalletService {
                 availableBalance: new Intl.NumberFormat('en-US', {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
-                }).format(fromWalletNewBalance),
+                }).format(Number(fromWalletNewBalance.toFixed(2))),
                 year: new Date().getFullYear(),
               },
             });
 
             //send debit sms alert
-            // this.apiProvider.sendSms(
-            //   user.phoneNumber,
-            //   getSMSAlertMessage(
-            //     amount,
-            //     toWallet?.accountName,
-            //     fromWallet?.accountName,
-            //     debitTrxRef,
-            //     formattedDate,
-            //     fromWalletNewBalance,
-            //     'transfer',
-            //     {
-            //       isCredit: false,
-            //     },
-            //   ),
-            // );
+            this.apiProvider.sendSms(
+              user.phoneNumber,
+              getSMSAlertMessage(
+                amount,
+                toWallet?.accountName,
+                fromWallet?.accountName,
+                debitTrxRef,
+                formattedDate,
+                Number(fromWalletNewBalance.toFixed(2)),
+                'transfer',
+                {
+                  isCredit: false,
+                },
+                maskedSAccountNumber,
+                maskedRAccountNumber,
+                toWallet.bankName.toUpperCase(),
+              ),
+            );
           } catch (error) {
             console.log('Error sending debit transfer alert', error);
           }
 
           try {
             //send credit alert email
-            const accountNum = fromWallet.accountNumber;
-            const maskedAccountNumber = `${accountNum.substring(0, 2)}xxx..${accountNum.substring(accountNum.length - 4, accountNum.length - 1)}x`;
-
             const amount = new Intl.NumberFormat('en-US', {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
@@ -777,7 +779,7 @@ export class WalletService {
                       word.slice(1).toLowerCase(),
                   )
                   .join(' '),
-                accountNumber: maskedAccountNumber,
+                accountNumber: maskedRAccountNumber,
                 dateAndTime: formattedDate,
                 senderName: fromWallet?.accountName,
                 reference: creditTrxRef,
@@ -791,21 +793,24 @@ export class WalletService {
             });
 
             //send credit sms alert
-            // this.apiProvider.sendSms(
-            //   user.phoneNumber,
-            //   getSMSAlertMessage(
-            //     amount,
-            //     toWallet?.accountName,
-            //     fromWallet?.accountName,
-            //     creditTrxRef,
-            //     formattedDate,
-            //     toWalletNewBalance,
-            //     'transfer',
-            //     {
-            //       isCredit: true,
-            //     },
-            //   ),
-            // );
+            this.apiProvider.sendSms(
+              user.phoneNumber,
+              getSMSAlertMessage(
+                amount,
+                toWallet?.accountName,
+                fromWallet?.accountName,
+                creditTrxRef,
+                formattedDate,
+                Number(toWalletNewBalance.toFixed(2)),
+                'transfer',
+                {
+                  isCredit: true,
+                },
+                maskedSAccountNumber,
+                maskedRAccountNumber,
+                fromWallet.bankName.toLowerCase(),
+              ),
+            );
           } catch (error) {
             console.log('Error sending credit transfer alert', error);
           }
@@ -962,13 +967,15 @@ export class WalletService {
 
             try {
               //send debit alert email
-              const accountNum = transferData?.creditAccountNumber;
-              const maskedAccountNumber = `${accountNum.substring(0, 2)}xxx..${accountNum.substring(accountNum.length - 4, accountNum.length - 1)}x`;
+              const RAccountNumber = transferData?.creditAccountNumber;
+              const SAccountNumber = fromWallet.accountNumber;
+              const maskedRAccountNumber = `${RAccountNumber.substring(0, 2)}xxx..${RAccountNumber.substring(RAccountNumber.length - 4, RAccountNumber.length - 1)}x`;
+              const maskedSAccountNumber = `${SAccountNumber.substring(0, 2)}xxx..${SAccountNumber.substring(SAccountNumber.length - 4, SAccountNumber.length - 1)}x`;
 
               const amount = new Intl.NumberFormat('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
-              }).format(body.amount);
+              }).format(Number(body.amount.toFixed(2)));
 
               const now = new Date();
               const formattedDate = now.toLocaleString('en-US', {
@@ -996,7 +1003,7 @@ export class WalletService {
                         word.slice(1).toLowerCase(),
                     )
                     .join(' '),
-                  accountNumber: maskedAccountNumber,
+                  accountNumber: maskedRAccountNumber,
                   dateAndTime: formattedDate,
                   receipientName: transferData?.creditAccountName,
                   narration: body.description || '',
@@ -1010,21 +1017,24 @@ export class WalletService {
               });
 
               //send debit sms alert
-              // this.apiProvider.sendSms(
-              //   user.phoneNumber,
-              //   getSMSAlertMessage(
-              //     amount,
-              //     transferData?.creditAccountName,
-              //     fromWallet?.accountName,
-              //     trxRef,
-              //     formattedDate,
-              //     fromWalletNewBalance,
-              //     'transfer',
-              //     {
-              //       isCredit: false,
-              //     },
-              //   ),
-              // );
+              this.apiProvider.sendSms(
+                user.phoneNumber,
+                getSMSAlertMessage(
+                  amount,
+                  transferData?.creditAccountName,
+                  fromWallet?.accountName,
+                  trxRef,
+                  formattedDate,
+                  Number(fromWalletNewBalance.toFixed(2)),
+                  'transfer',
+                  {
+                    isCredit: false,
+                  },
+                  maskedSAccountNumber,
+                  maskedRAccountNumber,
+                  beneficiaryBankName.toUpperCase(),
+                ),
+              );
             } catch (error) {
               console.log('Error sending transfer alert', error);
             }

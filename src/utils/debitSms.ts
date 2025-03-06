@@ -1,48 +1,70 @@
 const getTransferDebitSMSMessage = (
   amount: string,
   recipient: string,
-  trxId: string,
+  _trxId: string,
   date: string,
   balance: number,
+  accountNumber: string,
+  receipientAccountNumber: string,
+  receipientBanKName: string,
 ): string => {
-  return `[DEBIT] Your account has been debited with ${amount}. Recipient: ${recipient}. Desc: Transfer. Txn ID: ${trxId}. Date: ${date}. Bal: ${balance}.`;
+  return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${recipient} ${receipientAccountNumber}\nDesc: TRANSFER TO ${receipientBanKName}-\nBal: ${balance}\nDate: ${date}`;
 };
 
 const getAirtimeDebitSMSMessage = (
   amount: string,
   phone: string,
-  trxId: string,
+  _trxId: string,
   date: string,
   balance: number,
+  accountNumber: string,
 ): string => {
-  return `[DEBIT] Your account has been debited with ${amount}. Desc: Airtime purchase for ${phone}. Txn ID: ${trxId}. Date: ${date}. Bal: ${balance}.`;
+  return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${phone}\nDesc: AIRTIME PURCHASE-\nBal: ${balance}\nDate: ${date}`;
 };
 
 const getElectricityDebitSMSMessage = (
   amount: string,
   meterNumber: string,
   token: string,
-  txId: string,
+  _txId: string,
   date: string,
   balance: number,
-  unit?: string,
+  accountNumber: string,
 ): string => {
-  return '[DEBIT] Your account has been debited with [AMOUNT]. Desc: Electricity bill payment for Meter [METER_NUMBER]. Token: [TOKEN]. Units: [UNITS]. Txn ID: [TXNID]. Date: [DATE]. Bal: [BALANCE].';
+  return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${meterNumber}\nToken: ${token}\nDesc: ELECTRICITY PURCHASE-\nBal: ${balance}\nDate: ${date}`;
 };
 
-const getGiftCardDebitSMSMessage = (): string => {
-  return '[DEBIT] Your account has been debited with [AMOUNT]. Desc: [BRAND] Gift Card purchase. Card code: [CODE]. Txn ID: [TXNID]. Date: [DATE]. Bal: [BALANCE].';
+const getGiftCardDebitSMSMessage = (
+  amount: string,
+  phone: string,
+  _txId: string,
+  date: string,
+  balance: number,
+  accountNumber: string,
+): string => {
+  return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${phone}\nDesc: GIFTCARD PURCHASE-\nBal: ${balance}\nDate: ${date}`;
 };
 
 const getDataDebitSMSMessage = (
   amount: string,
   phone: string,
-  txId: string,
+  _txId: string,
   date: string,
   balance: number,
-  validity: string,
+  accountNumber: string,
 ): string => {
-  return `[DEBIT] Your account has been debited with ${amount}. Desc: ${amount}MB Data purchase for ${phone}. Validity: ${validity} days. Txn ID: ${txId}. Date: ${date}. Bal: ${balance}.`;
+  return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${phone}\nDesc: DATA PURCHASE-\nBal: ${balance}\nDate: ${date}`;
+};
+
+const getCableDebitSMSMessage = (
+  amount: string,
+  recipient: string,
+  _trxId: string,
+  date: string,
+  balance: number,
+  accountNumber: string,
+): string => {
+  return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${recipient}\nDesc: CABLE PURCHASE-\nBal: ${balance}\nDate: ${date}`;
 };
 
 export default function getDebitSMSMessage(
@@ -54,6 +76,10 @@ export default function getDebitSMSMessage(
     date: string;
     balance: number;
     validity?: string;
+    accountNumber?: string;
+    receipientAccountNumber?: string;
+    receipientBankName?: string;
+    token?: string;
   },
 ) {
   // Otherwise return appropriate debit message based on type
@@ -65,6 +91,9 @@ export default function getDebitSMSMessage(
         data.trxId,
         data.date,
         data.balance,
+        data.accountNumber,
+        data.receipientAccountNumber,
+        data.receipientBankName,
       );
     case 'data':
       return getDataDebitSMSMessage(
@@ -73,7 +102,7 @@ export default function getDebitSMSMessage(
         data.trxId,
         data.date,
         data.balance,
-        data.validity,
+        data.accountNumber,
       );
     case 'airtime':
       return getAirtimeDebitSMSMessage(
@@ -82,11 +111,36 @@ export default function getDebitSMSMessage(
         data.trxId,
         data.date,
         data.balance,
+        data.accountNumber,
       );
     case 'giftcard':
-      return getGiftCardDebitSMSMessage();
+      return getGiftCardDebitSMSMessage(
+        data.amount,
+        data.recipient,
+        data.trxId,
+        data.date,
+        data.balance,
+        data.accountNumber,
+      );
     case 'electricity':
-    //   return getElectricityDebitSMSMessage();
+      return getElectricityDebitSMSMessage(
+        data.amount,
+        data.recipient,
+        data.token,
+        data.trxId,
+        data.date,
+        data.balance,
+        data.accountNumber,
+      );
+    case 'cable':
+      return getCableDebitSMSMessage(
+        data.amount,
+        data.recipient,
+        data.trxId,
+        data.date,
+        data.balance,
+        data.accountNumber,
+      );
     default:
       return '[ALERT] Transaction processed. Txn ID: [TXNID]. Date: [DATE]. Check your app for details.';
   }

@@ -1,3 +1,4 @@
+import { BILL_TYPE } from '@prisma/client';
 import getCreditSMSMessage from './creditSms';
 import getDebitSMSMessage from './debitSms';
 
@@ -8,18 +9,15 @@ export default function getSMSAlertMessage(
   trxId: string,
   date: string,
   balance: number,
-  type:
-    | 'transfer'
-    | 'data'
-    | 'airtime'
-    | 'giftcard'
-    | 'card'
-    | 'electricity'
-    | 'credit',
+  type: BILL_TYPE | 'transfer',
   details?: {
     isCredit?: boolean;
   },
+  accountNumber?: string,
+  receipientOrSenderAccountNumber?: string,
+  receipientOrSenderBankName?: string,
   validity?: string,
+  token?: string,
 ) {
   // If specifically marked as credit transaction, return credit message
   if (details?.isCredit) {
@@ -31,6 +29,9 @@ export default function getSMSAlertMessage(
       date,
       balance,
       validity,
+      accountNumber,
+      senderAccountNumber: receipientOrSenderAccountNumber,
+      senderBankName: receipientOrSenderBankName,
     });
   }
 
@@ -41,5 +42,9 @@ export default function getSMSAlertMessage(
     date,
     balance,
     validity,
+    accountNumber,
+    receipientAccountNumber: receipientOrSenderAccountNumber,
+    receipientBankName: receipientOrSenderBankName,
+    token,
   });
 }

@@ -40,6 +40,7 @@ import { VerifyBillerDto } from './dto/VerifyBillerDto';
 import { PayBillDto } from './dto/PayBillDto';
 import * as bcrypt from 'bcrypt';
 import parsePhoneNumber, { PhoneNumber } from 'libphonenumber-js';
+import getSMSAlertMessage from 'src/utils';
 
 @Injectable()
 export class BillService {
@@ -634,6 +635,42 @@ export class BillService {
                 },
               },
             });
+
+            try {
+              // send sms message
+              const AccountNumber = lockWallet[0]?.accountNumber;
+              const maskedAccountNumber = `${AccountNumber.substring(0, 2)}xxx..${AccountNumber.substring(AccountNumber.length - 4, AccountNumber.length - 1)}x`;
+              const now = new Date();
+              const formattedDate = now.toLocaleString('en-US', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true,
+              });
+              const smsMessage = getSMSAlertMessage(
+                String(body?.amount),
+                res?.recipientPhone ?? res?.phone_number,
+                lockWallet[0]?.accountName,
+                res?.customIdentifier ?? res?.tx_ref,
+                formattedDate,
+                Number(newBalance.toFixed(2)),
+                bill_type,
+                {
+                  isCredit: false,
+                },
+                maskedAccountNumber,
+                '',
+                '',
+                '',
+                bill_type === 'electricity' ? res?.recharge_token : '',
+              );
+
+              this.apiProvider.sendSms(user?.phoneNumber, smsMessage);
+            } catch (error) {
+              console.log('error while sending sms message', error);
+            }
 
             return { res, transactionRecord };
           },
