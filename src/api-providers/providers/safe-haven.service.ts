@@ -374,8 +374,8 @@ export class SafeHavenService {
 
       try {
         //send credit alert email
-        const accountSNum = eventData?.debitAccountNumber;
-        const accountRNum = wallet.accountNumber;
+        const accountSNum = wallet.accountNumber;
+        const accountRNum = eventData?.debitAccountNumber;
         const maskedSAccountNumber = `${accountSNum.substring(0, 2)}xxx..${accountSNum.substring(accountSNum.length - 4, accountSNum.length - 1)}x`;
         const maskedRAccountNumber = `${accountRNum.substring(0, 2)}xxx..${accountRNum.substring(accountRNum.length - 4, accountRNum.length - 1)}x`;
 

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   HttpStatus,
   Injectable,
   InternalServerErrorException,
@@ -170,6 +171,7 @@ export class BillService {
       data: res,
     };
   }
+
   async getDataPlan(phone: number, currency: string) {
     const network = this.getNetworkProvider(String(phone));
     const countryISOCode =
@@ -471,225 +473,294 @@ export class BillService {
 
     if (!isMatched) throw new BadRequestException('Incorrect pin');
 
+    const trx_ref = this.generateTransactionRef('DEBIT');
     const MAX_RETRIES = CONCURRENT_MAX_RETRIES;
     const BASE_DELAY = CONCURRENT_BASE_DELAY;
+    let pendingTransactionId: string;
+    let lockWallet: Wallet[] = [];
+    let oldBalance: number;
+    let newBalance: number;
+
+    try {
+      //create a pending transactino
+      await this.prisma.$transaction(
+        async (trx) => {
+          // Wallet lock and balance check with more explicit locking
+          lockWallet =
+            await trx.$queryRaw`SELECT * FROM wallet WHERE "userId" = ${user?.id}::uuid FOR UPDATE SKIP LOCKED`;
+
+          if (!lockWallet || lockWallet.length === 0)
+            throw new ConflictException(
+              'Unable to access wallet at this time, please try again',
+            );
+
+          if (lockWallet[0]?.balance < body.amount)
+            throw new BadRequestException('Insufficient balance');
+
+          oldBalance = lockWallet[0]?.balance;
+          newBalance = oldBalance - body.amount;
+
+          // Update wallet balance
+          await trx.wallet.update({
+            where: { id: lockWallet[0]?.id },
+            data: { balance: newBalance },
+          });
+
+          //create a pending transaction
+          // Create bill debit transaction
+          const pendingTrx = await trx.transaction.create({
+            data: {
+              walletId: lockWallet[0]?.id,
+              transactionRef: trx_ref,
+              type: TRANSACTION_TYPE.DEBIT,
+              category: TRANSACTION_CATEGORY.BILL_PAYMENT,
+              currency: body.currency,
+              status: TRANSACTION_STATUS.pending,
+              previousBalance: oldBalance,
+              currentBalance: newBalance,
+              billDetails: {
+                type: bill_type,
+                amount: body?.amount,
+                amountPaid: body?.amount,
+                ...(bill_type === 'airtime' || bill_type === 'data'
+                  ? {
+                      network: this.getNetworkProvider((body as PayDto).phone),
+                      recipientPhone: (body as PayDto).phone,
+                    }
+                  : {}),
+
+                ...(bill_type === 'electricity' || bill_type === 'cable'
+                  ? { recipientPhone: (body as PayBillDto).billerNumber }
+                  : {}),
+              },
+            },
+          });
+
+          pendingTransactionId = pendingTrx.id;
+        },
+        {
+          isolationLevel: 'Serializable',
+          timeout: 10000,
+        },
+      );
+    } catch (error) {
+      console.log('Error initiating bill payment', error);
+      throw new InternalServerErrorException(
+        'Service temporarily unavailable. Please retry shortly.',
+      );
+    }
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
-        const result = await this.prisma.$transaction(
-          async (trx) => {
-            // Beneficiary addition logic (unchanged)
-            if (body?.addBeneficiary) {
-              let beneficiary: Beneficiary | null = null;
+        if (body?.addBeneficiary) {
+          let beneficiary: Beneficiary | null = null;
 
-              if (
-                bill_type === BILL_TYPE.airtime ||
-                bill_type === BILL_TYPE.data ||
-                bill_type === BILL_TYPE.internationalAirtime
-              ) {
-                beneficiary = await trx.beneficiary.findFirst({
-                  where: {
-                    userId: user?.id,
-                    billType: bill_type,
-                    billerNumber: (body as PayDto)?.phone,
-                  },
-                });
-              } else if (
-                bill_type === BILL_TYPE.cable ||
-                bill_type === BILL_TYPE.electricity
-              ) {
-                beneficiary = await trx.beneficiary.findFirst({
-                  where: {
-                    userId: user?.id,
-                    billType: bill_type,
-                    billerNumber: (body as PayBillDto)?.billerNumber,
-                  },
-                });
-              }
-
-              if (!beneficiary) {
-                let payload: any;
-
-                if (
-                  bill_type === BILL_TYPE.airtime ||
-                  bill_type === BILL_TYPE.data ||
-                  bill_type === BILL_TYPE.internationalAirtime
-                ) {
-                  payload = {
-                    userId: user?.id,
-                    type: BENEFICIARY_TYPE.BILL,
-                    billType: bill_type,
-                    billerNumber: (body as PayDto)?.phone,
-                    network: this.getNetworkProvider((body as PayDto)?.phone),
-                    operatorId: (body as PayDto)?.operatorId,
-                  };
-                } else if (
-                  bill_type === BILL_TYPE.cable ||
-                  bill_type === BILL_TYPE.electricity
-                ) {
-                  payload = {
-                    userId: user?.id,
-                    type: BENEFICIARY_TYPE.BILL,
-                    billType: bill_type,
-                    billerCode: (body as PayBillDto)?.billerCode,
-                    itemCode: (body as PayBillDto)?.itemCode,
-                    billerNumber: (body as PayBillDto)?.billerNumber,
-                  };
-                }
-
-                await trx.beneficiary.create({ data: payload });
-              }
-            }
-
-            // Wallet lock and balance check with more explicit locking
-            const lockWallet: Wallet[] =
-              await trx.$queryRaw`SELECT * FROM wallet WHERE "userId" = ${user?.id}::uuid FOR UPDATE SKIP LOCKED`;
-
-            if (!lockWallet || lockWallet.length === 0)
-              throw new NotFoundException('Wallet for user not found');
-
-            if (lockWallet[0]?.balance < body.amount)
-              throw new BadRequestException('Insufficient balance');
-
-            const oldBalance = lockWallet[0]?.balance;
-            const newBalance = oldBalance - body.amount;
-
-            // Update wallet balance
-            await trx.wallet.update({
-              where: { id: lockWallet[0]?.id },
-              data: { balance: newBalance },
-            });
-
-            // Process bill payment
-            let res: any;
-            const trx_ref = this.generateTransactionRef('DEBIT');
-
-            try {
-              if (bill_type === 'airtime' || bill_type === 'data') {
-                res = await this.apiProvider.purchaseTopup(
-                  body as PayDto,
-                  user?.email,
-                  trx_ref,
-                );
-              } else if (bill_type === 'giftcard') {
-                res = await this.apiProvider.purchaseGiftcard(
-                  body as GiftCardPayDto,
-                  user?.email,
-                  trx_ref,
-                );
-              } else if (
-                bill_type === 'cable' ||
-                bill_type === 'electricity' ||
-                bill_type === 'internet' ||
-                bill_type === 'transport' ||
-                bill_type === 'schoolfee'
-              ) {
-                res = await this.apiProvider.purchaseBill(
-                  body as PayBillDto,
-                  trx_ref,
-                );
-              } else {
-                res = await this.apiProvider.purchaseBillWithIdentifier(
-                  body as PayBillDto,
-                  user?.id,
-                  trx_ref,
-                );
-              }
-            } catch (error) {
-              console.error(`Error paying for ${bill_type}`, error);
-              throw error;
-            }
-
-            // Create bill debit transaction
-            const transactionRecord = await trx.transaction.create({
-              data: {
-                walletId: lockWallet[0]?.id,
-                transactionRef: res?.customIdentifier ?? res?.tx_ref,
-                type: TRANSACTION_TYPE.DEBIT,
-                category: TRANSACTION_CATEGORY.BILL_PAYMENT,
-                currency: body.currency,
-                status: TRANSACTION_STATUS.success,
-                previousBalance: oldBalance,
-                currentBalance: newBalance,
-                billDetails: {
-                  recipientEmail: res?.recipientEmail,
-                  recipientPhone: res?.recipientPhone ?? res?.phone_number,
-                  type: bill_type,
-                  fee: res?.fee,
-                  reference: res?.reference,
-                  amount: body?.amount,
-                  amountPaid: body?.amount,
-                  ...(bill_type === 'airtime' || bill_type === 'data'
-                    ? {
-                        network: this.getNetworkProvider(
-                          (body as PayDto).phone,
-                        ),
-                      }
-                    : {}),
-                  ...(bill_type === 'giftcard'
-                    ? { transactionId: res?.transactionId }
-                    : {}),
-                  ...(bill_type === 'electricity' && res?.recharge_token
-                    ? { recharge_token: res?.recharge_token }
-                    : {}),
-                },
+          if (
+            bill_type === BILL_TYPE.airtime ||
+            bill_type === BILL_TYPE.data ||
+            bill_type === BILL_TYPE.internationalAirtime
+          ) {
+            beneficiary = await this.prisma.beneficiary.findFirst({
+              where: {
+                userId: user?.id,
+                billType: bill_type,
+                billerNumber: (body as PayDto)?.phone,
               },
             });
+          } else if (
+            bill_type === BILL_TYPE.cable ||
+            bill_type === BILL_TYPE.electricity
+          ) {
+            beneficiary = await this.prisma.beneficiary.findFirst({
+              where: {
+                userId: user?.id,
+                billType: bill_type,
+                billerNumber: (body as PayBillDto)?.billerNumber,
+              },
+            });
+          }
 
-            try {
-              // send sms message
-              const AccountNumber = lockWallet[0]?.accountNumber;
-              const maskedAccountNumber = `${AccountNumber.substring(0, 2)}xxx..${AccountNumber.substring(AccountNumber.length - 4, AccountNumber.length - 1)}x`;
-              const now = new Date();
-              const formattedDate = now.toLocaleString('en-US', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true,
-              });
-              const smsMessage = getSMSAlertMessage(
-                String(body?.amount),
-                res?.recipientPhone ?? res?.phone_number,
-                lockWallet[0]?.accountName,
-                res?.customIdentifier ?? res?.tx_ref,
-                formattedDate,
-                Number(newBalance.toFixed(2)),
-                bill_type,
-                {
-                  isCredit: false,
-                },
-                maskedAccountNumber,
-                '',
-                '',
-                '',
-                bill_type === 'electricity' ? res?.recharge_token : '',
-              );
+          if (!beneficiary) {
+            let payload: any;
 
-              this.apiProvider.sendSms(user?.phoneNumber, smsMessage);
-            } catch (error) {
-              console.log('error while sending sms message', error);
+            if (
+              bill_type === BILL_TYPE.airtime ||
+              bill_type === BILL_TYPE.data ||
+              bill_type === BILL_TYPE.internationalAirtime
+            ) {
+              payload = {
+                userId: user?.id,
+                type: BENEFICIARY_TYPE.BILL,
+                billType: bill_type,
+                billerNumber: (body as PayDto)?.phone,
+                network: this.getNetworkProvider((body as PayDto)?.phone),
+                operatorId: (body as PayDto)?.operatorId,
+              };
+            } else if (
+              bill_type === BILL_TYPE.cable ||
+              bill_type === BILL_TYPE.electricity
+            ) {
+              payload = {
+                userId: user?.id,
+                type: BENEFICIARY_TYPE.BILL,
+                billType: bill_type,
+                billerCode: (body as PayBillDto)?.billerCode,
+                itemCode: (body as PayBillDto)?.itemCode,
+                billerNumber: (body as PayBillDto)?.billerNumber,
+              };
             }
 
-            return { res, transactionRecord };
+            await this.prisma.beneficiary.create({ data: payload });
+          }
+        }
+
+        // Process bill payment
+        let res: any;
+        const trx_ref = this.generateTransactionRef('DEBIT');
+
+        try {
+          if (bill_type === 'airtime' || bill_type === 'data') {
+            res = await this.apiProvider.purchaseTopup(
+              body as PayDto,
+              user?.email,
+              trx_ref,
+            );
+          } else if (bill_type === 'giftcard') {
+            res = await this.apiProvider.purchaseGiftcard(
+              body as GiftCardPayDto,
+              user?.email,
+              trx_ref,
+            );
+          } else if (
+            bill_type === 'cable' ||
+            bill_type === 'electricity' ||
+            bill_type === 'internet' ||
+            bill_type === 'transport' ||
+            bill_type === 'schoolfee'
+          ) {
+            res = await this.apiProvider.purchaseBill(
+              body as PayBillDto,
+              trx_ref,
+            );
+          } else {
+            res = await this.apiProvider.purchaseBillWithIdentifier(
+              body as PayBillDto,
+              user?.id,
+              trx_ref,
+            );
+          }
+        } catch (error) {
+          console.error(`Error paying for ${bill_type}`, error);
+          // Create failed bill debit transaction
+          await this.prisma.transaction.update({
+            where: {
+              id: pendingTransactionId,
+            },
+            data: {
+              status: TRANSACTION_STATUS.failed,
+            },
+          });
+
+          // refund's  user wallet
+          await this.prisma.$transaction(async (trx) => {
+            const lockfromWallet: Wallet[] =
+              await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${lockWallet[0]?.id}::uuid FOR UPDATE SKIP LOCKED LIMIT 1`;
+
+            if (!lockfromWallet.length || !lockfromWallet[0]) {
+              throw new ConflictException(
+                'Unable to access wallet at this time, please try again',
+              );
+            }
+
+            await trx.wallet.update({
+              where: {
+                id: lockfromWallet[0]?.id,
+              },
+              data: {
+                balance: lockfromWallet[0]?.balance + body?.amount,
+              },
+            });
+          });
+
+          throw new InternalServerErrorException('Payment processing failed');
+        }
+
+        // update transaction
+        await this.prisma.transaction.update({
+          where: {
+            id: pendingTransactionId,
           },
-          {
-            isolationLevel: 'Serializable',
-            timeout: 20000,
+          data: {
+            status: TRANSACTION_STATUS.success,
+            billDetails: {
+              recipientEmail: res?.recipientEmail,
+              recipientPhone: res?.recipientPhone ?? res?.phone_number,
+              type: bill_type,
+              fee: res?.fee,
+              reference: res?.reference,
+              amount: body?.amount,
+              amountPaid: body?.amount,
+              ...(bill_type === 'airtime' || bill_type === 'data'
+                ? {
+                    network: this.getNetworkProvider((body as PayDto).phone),
+                  }
+                : {}),
+              ...(bill_type === 'giftcard'
+                ? { transactionId: res?.transactionId }
+                : {}),
+              ...(bill_type === 'electricity' && res?.recharge_token
+                ? { recharge_token: res?.recharge_token }
+                : {}),
+            },
           },
-        );
+        });
+
+        try {
+          // send sms message
+          const AccountNumber = lockWallet[0]?.accountNumber;
+          const maskedAccountNumber = `${AccountNumber.substring(0, 2)}xxx..${AccountNumber.substring(AccountNumber.length - 4, AccountNumber.length - 1)}x`;
+          const now = new Date();
+          const formattedDate = now.toLocaleString('en-US', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+          });
+          const smsMessage = getSMSAlertMessage(
+            String(body?.amount),
+            res?.recipientPhone ?? res?.phone_number,
+            lockWallet[0]?.accountName,
+            res?.customIdentifier ?? res?.tx_ref,
+            formattedDate,
+            Number(newBalance.toFixed(2)),
+            bill_type,
+            {
+              isCredit: false,
+            },
+            maskedAccountNumber,
+            '',
+            '',
+            '',
+            bill_type === BILL_TYPE.electricity ? res?.recharge_token : '',
+          );
+
+          this.apiProvider.sendSms(user?.phoneNumber, smsMessage);
+        } catch (error) {
+          console.log('error while sending sms message', error);
+        }
 
         // Successful transaction
         return {
           message: 'Purchase successfully',
           statusCode: HttpStatus.OK,
           data: {
-            ...(result.res?.recharge_token
-              ? { recharge_token: result.res?.recharge_token }
+            ...(res?.recharge_token
+              ? { recharge_token: res?.recharge_token }
               : {}),
             ...(bill_type === 'giftcard'
-              ? { transactionId: result.res?.transactionId }
+              ? { transactionId: res?.transactionId }
               : {}),
           },
         };
@@ -716,32 +787,34 @@ export class BillService {
         }
 
         // Create failed bill debit transaction
-        await this.prisma.transaction.create({
-          data: {
-            walletId: user.wallet.id,
-            transactionRef: this.generateTransactionRef('DEBIT'),
-            type: TRANSACTION_TYPE.DEBIT,
-            category: TRANSACTION_CATEGORY.BILL_PAYMENT,
-            currency: body.currency,
-            status: TRANSACTION_STATUS.failed,
-            previousBalance: user.wallet.balance,
-            currentBalance: user.wallet.balance,
-            billDetails: {
-              type: bill_type,
-              amount: body?.amount,
-              amountPaid: body?.amount,
-              ...(bill_type === 'airtime' || bill_type === 'data'
-                ? {
-                    network: this.getNetworkProvider((body as PayDto).phone),
-                    recipientPhone: (body as PayDto).phone,
-                  }
-                : {}),
-
-              ...(bill_type === 'electricity' || bill_type === 'cable'
-                ? { recipientPhone: (body as PayBillDto).billerNumber }
-                : {}),
-            },
+        await this.prisma.transaction.update({
+          where: {
+            id: pendingTransactionId,
           },
+          data: {
+            status: TRANSACTION_STATUS.failed,
+          },
+        });
+
+        // refund's  user wallet
+        await this.prisma.$transaction(async (trx) => {
+          const lockfromWallet: Wallet[] =
+            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${lockWallet[0]?.id}::uuid FOR UPDATE SKIP LOCKED LIMIT 1`;
+
+          if (!lockfromWallet.length || !lockfromWallet[0]) {
+            throw new ConflictException(
+              'Unable to access wallet at this time, please try again',
+            );
+          }
+
+          await trx.wallet.update({
+            where: {
+              id: lockfromWallet[0]?.id,
+            },
+            data: {
+              balance: lockfromWallet[0]?.balance + body?.amount,
+            },
+          });
         });
 
         // Log and rethrow other errors
@@ -752,7 +825,6 @@ export class BillService {
         throw new InternalServerErrorException('Payment processing failed');
       }
     }
-
     // If all retries fail
     throw new InternalServerErrorException('Payment processing failed');
   }

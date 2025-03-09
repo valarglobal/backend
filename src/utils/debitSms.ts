@@ -8,7 +8,7 @@ const getTransferDebitSMSMessage = (
   receipientAccountNumber: string,
   receipientBanKName: string,
 ): string => {
-  return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${recipient} ${receipientAccountNumber}\nDesc: TRANSFER TO ${receipientBanKName}-\nBal: ${balance}\nDate: ${date}`;
+  return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${recipient} ${receipientAccountNumber}\nDesc: TRANSFER TO ${receipientBanKName}-\nBal: ${balance}\nDate: ${date}\nNattyPaySmartBanking`;
 };
 
 const getAirtimeDebitSMSMessage = (
@@ -19,7 +19,7 @@ const getAirtimeDebitSMSMessage = (
   balance: number,
   accountNumber: string,
 ): string => {
-  return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${phone}\nDesc: AIRTIME PURCHASE-\nBal: ${balance}\nDate: ${date}`;
+  return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${phone}\nDesc: AIRTIME PURCHASE-\nBal: ${balance}\nDate: ${date}\nNattyPaySmartBanking`;
 };
 
 const getElectricityDebitSMSMessage = (
@@ -31,7 +31,7 @@ const getElectricityDebitSMSMessage = (
   balance: number,
   accountNumber: string,
 ): string => {
-  return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${meterNumber}\nToken: ${token}\nDesc: ELECTRICITY PURCHASE-\nBal: ${balance}\nDate: ${date}`;
+  return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${meterNumber}\nToken: ${token}\nDesc: ELECTRICITY PURCHASE-\nBal: ${balance}\nDate: ${date}\nNattyPaySmartBanking`;
 };
 
 const getGiftCardDebitSMSMessage = (
@@ -42,7 +42,7 @@ const getGiftCardDebitSMSMessage = (
   balance: number,
   accountNumber: string,
 ): string => {
-  return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${phone}\nDesc: GIFTCARD PURCHASE-\nBal: ${balance}\nDate: ${date}`;
+  return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${phone}\nDesc: GIFTCARD PURCHASE-\nBal: ${balance}\nDate: ${date}\nNattyPaySmartBanking`;
 };
 
 const getDataDebitSMSMessage = (
@@ -53,7 +53,7 @@ const getDataDebitSMSMessage = (
   balance: number,
   accountNumber: string,
 ): string => {
-  return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${phone}\nDesc: DATA PURCHASE-\nBal: ${balance}\nDate: ${date}`;
+  return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${phone}\nDesc: DATA PURCHASE-\nBal: ${balance}\nDate: ${date}\nNattyPaySmartBanking`;
 };
 
 const getCableDebitSMSMessage = (
@@ -64,7 +64,7 @@ const getCableDebitSMSMessage = (
   balance: number,
   accountNumber: string,
 ): string => {
-  return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${recipient}\nDesc: CABLE PURCHASE-\nBal: ${balance}\nDate: ${date}`;
+  return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${recipient}\nDesc: CABLE PURCHASE-\nBal: ${balance}\nDate: ${date}\nNattyPaySmartBanking`;
 };
 
 export default function getDebitSMSMessage(

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   HttpStatus,
   Injectable,
   InternalServerErrorException,
@@ -39,6 +40,7 @@ import jsQR from 'jsqr';
 import { EmailService } from 'src/email/email.service';
 import getDebitSMSMessage from 'src/utils/debitSms';
 import getSMSAlertMessage from 'src/utils';
+import { PrismaModule } from 'src/prisma/prisma.module';
 
 @Injectable()
 export class WalletService {
@@ -867,7 +869,9 @@ export class WalletService {
 
         // Log and rethrow other errors
         console.error('Transaction failed:', error);
-        throw new InternalServerErrorException('Transfer processing failed');
+        throw new InternalServerErrorException(
+          'Transaction service temporarily unavailable. Please retry shortly.',
+        );
       }
     }
 
@@ -884,166 +888,223 @@ export class WalletService {
     const MAX_RETRIES = CONCURRENT_MAX_RETRIES;
     const BASE_DELAY = CONCURRENT_BASE_DELAY;
 
+    const trxRef = this.generateTransactionRef('DEBIT');
     let beneficiaryBankName: any;
     let transferData: any;
+    let pendingTransactionId: string;
+    let fromWalletNewBalance: number;
+
+    try {
+      // create a pending transaction
+      await this.prisma.$transaction(
+        async (trx) => {
+          const lockfromWallet: Wallet[] =
+            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid FOR UPDATE SKIP LOCKED LIMIT 1`;
+
+          if (!lockfromWallet.length || !lockfromWallet[0]) {
+            throw new ConflictException(
+              'Unable to access wallet at this time, please try again',
+            );
+          }
+
+          [fromWalletNewBalance, beneficiaryBankName] = await Promise.all([
+            this.deductBalance(lockfromWallet[0], amountPaid, trx),
+            this.apiProvider.getSafeHavenBankName(body?.bankCode),
+          ]);
+
+          //create a pending transaction
+          const pendingTrx = await trx.transaction.create({
+            data: {
+              walletId: fromWallet.id,
+              transactionRef: trxRef,
+              type: TRANSACTION_TYPE.DEBIT,
+              currency: body.currency,
+              status: TRANSACTION_STATUS.pending,
+              description: body.description,
+              previousBalance: fromWallet?.balance,
+              currentBalance: fromWalletNewBalance,
+              transferDetails: {
+                senderName: fromWallet?.accountName,
+                senderAccountNumber: fromWallet?.accountNumber,
+                senderBankName: fromWallet?.bankName,
+                beneficiaryName: transferData?.creditAccountName,
+                beneficiaryAccountNumber: transferData?.creditAccountNumber,
+                beneficiaryBankName,
+                amount: body.amount,
+                amountPaid,
+                fee,
+              },
+            },
+          });
+
+          pendingTransactionId = pendingTrx.id;
+        },
+        {
+          isolationLevel: 'Serializable',
+          timeout: 10000,
+        },
+      );
+    } catch (error) {
+      console.log('Error initiating transfer', error);
+      throw new InternalServerErrorException(
+        'Service temporarily unavailable. Please retry shortly.',
+      );
+    }
+
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
-        await this.prisma.$transaction(
-          async (trx) => {
-            // lock from wallet for updates
+        const res = await this.apiProvider.transferSafeHavenFund(
+          { ...body, amount: amountPaid },
+          fromWallet.accountNumber,
+          trxRef,
+        );
+
+        if (res?.statusCode !== 200) {
+          await this.prisma.transaction.update({
+            where: {
+              id: pendingTransactionId,
+            },
+            data: {
+              status: TRANSACTION_STATUS.failed,
+            },
+          });
+
+          // refund's user wallet
+          await this.prisma.$transaction(async (trx) => {
             const lockfromWallet: Wallet[] =
               await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid FOR UPDATE SKIP LOCKED LIMIT 1`;
 
-            let fromWalletNewBalance: number;
-            const trx_ref = this.generateTransactionRef('CREDIT');
-
-            [fromWalletNewBalance, beneficiaryBankName] = await Promise.all([
-              this.deductBalance(lockfromWallet[0], amountPaid, trx),
-              this.apiProvider.getSafeHavenBankName(body?.bankCode),
-            ]);
-
-            const res = await this.apiProvider.transferSafeHavenFund(
-              { ...body, amount: amountPaid },
-              fromWallet.accountNumber,
-              trx_ref,
-            );
-
-            if (res?.statusCode !== 200)
-              throw new InternalServerErrorException(
-                'Transfer processing failed',
+            if (!lockfromWallet.length || !lockfromWallet[0]) {
+              throw new ConflictException(
+                'Unable to access wallet at this time, please try again',
               );
-
-            transferData = res?.data;
-            // check if beneficiary is to be added
-            if (body?.addBeneficiary) {
-              // check if that account number has been added before
-              const beneficiary = await trx.beneficiary.findFirst({
-                where: {
-                  userId: user?.id,
-                  accountNumber: body?.accountNumber,
-                },
-              });
-
-              if (!beneficiary) {
-                // add beneficiary
-                await trx.beneficiary.create({
-                  data: {
-                    userId: user?.id,
-                    type: BENEFICIARY_TYPE.TRANSFER,
-                    bankCode: body?.bankCode,
-                    accountNumber: body?.accountNumber,
-                    bankName: beneficiaryBankName,
-                    accountName: transferData?.creditAccountName,
-                  },
-                });
-              }
             }
 
-            const trxRef = this.generateTransactionRef('DEBIT');
-            // create a debit transaction
-            await trx.transaction.create({
+            await this.addbalance(lockfromWallet[0], amountPaid, trx);
+          });
+
+          throw new InternalServerErrorException('Transfer processing failed');
+        }
+
+        transferData = res?.data;
+        // check if beneficiary is to be added
+        if (body?.addBeneficiary) {
+          // check if that account number has been added before
+          const beneficiary = await this.prisma.beneficiary.findFirst({
+            where: {
+              userId: user?.id,
+              accountNumber: body?.accountNumber,
+            },
+          });
+
+          if (!beneficiary) {
+            // add beneficiary
+            await this.prisma.beneficiary.create({
               data: {
-                walletId: fromWallet.id,
-                transactionRef: trxRef,
-                type: TRANSACTION_TYPE.DEBIT,
-                currency: body.currency,
-                status: TRANSACTION_STATUS.success,
-                description: body.description,
-                previousBalance: fromWallet?.balance,
-                currentBalance: fromWalletNewBalance,
-                transferDetails: {
-                  senderName: fromWallet?.accountName,
-                  senderAccountNumber: fromWallet?.accountNumber,
-                  senderBankName: fromWallet?.bankName,
-                  beneficiaryName: transferData?.creditAccountName,
-                  beneficiaryAccountNumber: transferData?.creditAccountNumber,
-                  beneficiaryBankName,
-                  amount: body.amount,
-                  amountPaid,
-                  fee,
-                },
+                userId: user?.id,
+                type: BENEFICIARY_TYPE.TRANSFER,
+                bankCode: body?.bankCode,
+                accountNumber: body?.accountNumber,
+                bankName: beneficiaryBankName,
+                accountName: transferData?.creditAccountName,
               },
             });
+          }
+        }
 
-            try {
-              //send debit alert email
-              const RAccountNumber = transferData?.creditAccountNumber;
-              const SAccountNumber = fromWallet.accountNumber;
-              const maskedRAccountNumber = `${RAccountNumber.substring(0, 2)}xxx..${RAccountNumber.substring(RAccountNumber.length - 4, RAccountNumber.length - 1)}x`;
-              const maskedSAccountNumber = `${SAccountNumber.substring(0, 2)}xxx..${SAccountNumber.substring(SAccountNumber.length - 4, SAccountNumber.length - 1)}x`;
+        // update transaction
+        await this.prisma.transaction.update({
+          where: {
+            id: pendingTransactionId,
+          },
+          data: {
+            status: TRANSACTION_STATUS.success,
+            transferDetails: {
+              senderName: fromWallet?.accountName,
+              senderAccountNumber: fromWallet?.accountNumber,
+              senderBankName: fromWallet?.bankName,
+              beneficiaryName: transferData?.creditAccountName,
+              beneficiaryAccountNumber: transferData?.creditAccountNumber,
+              beneficiaryBankName,
+              amount: body.amount,
+              amountPaid,
+              fee,
+            },
+          },
+        });
 
-              const amount = new Intl.NumberFormat('en-US', {
+        try {
+          //send debit alert email
+          const RAccountNumber = transferData?.creditAccountNumber;
+          const SAccountNumber = fromWallet.accountNumber;
+          const maskedRAccountNumber = `${RAccountNumber.substring(0, 2)}xxx..${RAccountNumber.substring(RAccountNumber.length - 4, RAccountNumber.length - 1)}x`;
+          const maskedSAccountNumber = `${SAccountNumber.substring(0, 2)}xxx..${SAccountNumber.substring(SAccountNumber.length - 4, SAccountNumber.length - 1)}x`;
+
+          const amount = new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }).format(Number(body.amount.toFixed(2)));
+
+          const now = new Date();
+          const formattedDate = now.toLocaleString('en-US', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+            timeZone: 'Africa/Lagos',
+          });
+
+          this.emailService.sendEmail({
+            to: user.email,
+            subject: 'Debit Alert',
+            template: 'user/debit.hbs',
+            context: {
+              amount,
+              accountName: fromWallet.accountName
+                .split('/')[1]
+                .split(' ')
+                .map(
+                  (word) =>
+                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+                )
+                .join(' '),
+              accountNumber: maskedRAccountNumber,
+              dateAndTime: formattedDate,
+              receipientName: transferData?.creditAccountName,
+              narration: body.description || '',
+              reference: trxRef,
+              availableBalance: new Intl.NumberFormat('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
-              }).format(Number(body.amount.toFixed(2)));
+              }).format(fromWalletNewBalance),
+              year: new Date().getFullYear(),
+            },
+          });
 
-              const now = new Date();
-              const formattedDate = now.toLocaleString('en-US', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true,
-                timeZone: 'Africa/Lagos',
-              });
-
-              this.emailService.sendEmail({
-                to: user.email,
-                subject: 'Debit Alert',
-                template: 'user/debit.hbs',
-                context: {
-                  amount,
-                  accountName: fromWallet.accountName
-                    .split('/')[1]
-                    .split(' ')
-                    .map(
-                      (word) =>
-                        word.charAt(0).toUpperCase() +
-                        word.slice(1).toLowerCase(),
-                    )
-                    .join(' '),
-                  accountNumber: maskedRAccountNumber,
-                  dateAndTime: formattedDate,
-                  receipientName: transferData?.creditAccountName,
-                  narration: body.description || '',
-                  reference: trxRef,
-                  availableBalance: new Intl.NumberFormat('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  }).format(fromWalletNewBalance),
-                  year: new Date().getFullYear(),
-                },
-              });
-
-              //send debit sms alert
-              this.apiProvider.sendSms(
-                user.phoneNumber,
-                getSMSAlertMessage(
-                  amount,
-                  transferData?.creditAccountName,
-                  fromWallet?.accountName,
-                  trxRef,
-                  formattedDate,
-                  Number(fromWalletNewBalance.toFixed(2)),
-                  'transfer',
-                  {
-                    isCredit: false,
-                  },
-                  maskedSAccountNumber,
-                  maskedRAccountNumber,
-                  beneficiaryBankName.toUpperCase(),
-                ),
-              );
-            } catch (error) {
-              console.log('Error sending transfer alert', error);
-            }
-          },
-          {
-            isolationLevel: 'Serializable',
-            timeout: 20000,
-          },
-        );
+          //send debit sms alert
+          this.apiProvider.sendSms(
+            user.phoneNumber,
+            getSMSAlertMessage(
+              amount,
+              transferData?.creditAccountName,
+              fromWallet?.accountName,
+              trxRef,
+              formattedDate,
+              Number(fromWalletNewBalance.toFixed(2)),
+              'transfer',
+              {
+                isCredit: false,
+              },
+              maskedSAccountNumber,
+              maskedRAccountNumber,
+              beneficiaryBankName.toUpperCase(),
+            ),
+          );
+        } catch (error) {
+          console.log('Error sending transfer alert', error);
+        }
 
         return {
           message: 'Transfer initiated successfully',
@@ -1071,28 +1132,27 @@ export class WalletService {
           continue;
         }
 
-        // Create failed transfer transaction
-        await this.prisma.transaction.create({
-          data: {
-            walletId: user.wallet.id,
-            transactionRef: this.generateTransactionRef('DEBIT'),
-            type: TRANSACTION_TYPE.DEBIT,
-            currency: body.currency,
-            status: TRANSACTION_STATUS.failed,
-            previousBalance: user.wallet.balance,
-            currentBalance: user.wallet.balance,
-            transferDetails: {
-              senderName: fromWallet?.accountName,
-              senderAccountNumber: fromWallet?.accountNumber,
-              senderBankName: fromWallet?.bankName,
-              beneficiaryName: body?.accountName,
-              beneficiaryAccountNumber: body.accountNumber,
-              beneficiaryBankName,
-              amount: body.amount,
-              amountPaid,
-              fee,
-            },
+        await this.prisma.transaction.update({
+          where: {
+            id: pendingTransactionId,
           },
+          data: {
+            status: TRANSACTION_STATUS.failed,
+          },
+        });
+
+        // refund's  user wallet
+        await this.prisma.$transaction(async (trx) => {
+          const lockfromWallet: Wallet[] =
+            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid FOR UPDATE SKIP LOCKED LIMIT 1`;
+
+          if (!lockfromWallet.length || !lockfromWallet[0]) {
+            throw new ConflictException(
+              'Unable to access wallet at this time, please try again',
+            );
+          }
+
+          await this.addbalance(lockfromWallet[0], amountPaid, trx);
         });
 
         // Log and rethrow other errors

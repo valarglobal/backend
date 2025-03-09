@@ -8,7 +8,7 @@ const getTransferCreditSMSMessage = (
   senderAccountNumber: string,
   senderBankName: string,
 ): string => {
-  return `CREDIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nSender: ${sender} ${senderAccountNumber}\nDesc: TRANSFER RECEIVED FROM ${senderBankName}\nBal: ${balance}\nDate: ${date}`;
+  return `CREDIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nSender: ${sender} ${senderAccountNumber}\nDesc: TRANSFER RECEIVED FROM ${senderBankName}\nBal: ${balance}\nDate: ${date}\nNattyPaySmartBanking`;
 };
 
 const getRefundCreditSMSMessage = (
@@ -18,7 +18,7 @@ const getRefundCreditSMSMessage = (
   date: string,
   balance: number,
 ): string => {
-  return `[CREDIT] Your account has been credited with ${amount}. Desc: Refund for ${service}. Txn ID: ${trxId}. Date: ${date}. Bal: ${balance}.`;
+  return `[CREDIT] Your account has been credited with ${amount}. Desc: Refund for ${service}. Txn ID: ${trxId}. Date: ${date}. Bal: ${balance}\nNattyPaySmartBanking`;
 };
 
 export default function getCreditSMSMessage(

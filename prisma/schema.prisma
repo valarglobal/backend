@@ -188,7 +188,7 @@ model Beneficiary {
 
   type BENEFICIARY_TYPE
 
-// details for transfer 
+// details for transfer
   bankName String?
   bankCode String?
   accountNumber String?
