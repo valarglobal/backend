@@ -1,11 +1,4 @@
-import {
-  BadRequestException,
-  forwardRef,
-  HttpStatus,
-  Inject,
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   TRANSACTION_CATEGORY,
@@ -254,9 +247,6 @@ export class FlutterwaveService {
           where: {
             email: data?.customer?.email,
           },
-          include: {
-            wallet: true,
-          },
         });
 
         if (!user)
@@ -264,7 +254,17 @@ export class FlutterwaveService {
             'User account with email does not exist',
           );
 
-        const oldBalance = user.wallet?.balance;
+        const wallet = await trx.wallet.findFirst({
+          where: {
+            userId: user.id,
+            currency: data?.currency ?? 'NGN',
+          },
+        });
+
+        if (!wallet)
+          throw new InternalServerErrorException('User wallet not found');
+
+        const oldBalance = wallet?.balance;
         const newBalance = oldBalance + trxData?.amount_settled;
 
         //check if the amount credited is above the singleCreditLimit
@@ -285,7 +285,7 @@ export class FlutterwaveService {
         >`
           SELECT SUM(("depositDetails"->>'amountPaid')::numeric) AS total
           FROM transaction
-          WHERE "walletId" = ${user?.wallet?.id}::uuid
+          WHERE "walletId" = ${wallet?.id}::uuid
             AND category = 'DEPOSIT'
             AND type = 'CREDIT'
             AND status = 'success'
@@ -308,7 +308,7 @@ export class FlutterwaveService {
 
         // update the user wallet balance
         await trx.wallet.update({
-          where: { id: user?.wallet?.id },
+          where: { id: wallet?.id },
           data: {
             balance: newBalance,
           },
@@ -329,7 +329,7 @@ export class FlutterwaveService {
         // create transaction
         await trx.transaction.create({
           data: {
-            walletId: user.wallet?.id,
+            walletId: wallet?.id,
             transactionRef: String(data?.id),
             type: TRANSACTION_TYPE.CREDIT,
             category: TRANSACTION_CATEGORY.DEPOSIT,
@@ -374,15 +374,22 @@ export class FlutterwaveService {
           where: {
             email: data?.customer?.email,
           },
-          include: {
-            wallet: true,
-          },
         });
 
         if (!user)
           throw new InternalServerErrorException(
             'User account with email does not exist',
           );
+
+        const wallet = await trx.wallet.findFirst({
+          where: {
+            userId: user.id,
+            currency: data?.currency ?? 'NGN',
+          },
+        });
+
+        if (!wallet)
+          throw new InternalServerErrorException('User wallet not found');
 
         // create a payment event
         await trx.paymentEvent.create({
@@ -399,14 +406,14 @@ export class FlutterwaveService {
         // create failed transaction
         await trx.transaction.create({
           data: {
-            walletId: user.wallet?.id,
+            walletId: wallet?.id,
             transactionRef: String(data?.id),
             type: TRANSACTION_TYPE.CREDIT,
             category: TRANSACTION_CATEGORY.DEPOSIT,
             currency: data?.currency,
             status: TRANSACTION_STATUS.failed,
-            previousBalance: user?.wallet?.balance,
-            currentBalance: user?.wallet?.balance,
+            previousBalance: wallet?.balance,
+            currentBalance: wallet?.balance,
             depositDetails: {
               senderName: metaData?.originatorname,
               senderAccountNumber: metaData?.originatoraccountnumber,

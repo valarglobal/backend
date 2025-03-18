@@ -11,6 +11,7 @@ import {
   ACCOUNT_TYPE,
   BENEFICIARY_TYPE,
   BILL_TYPE,
+  CURRENCY,
   ScamTicket,
   TIER_LEVEL,
   Transaction,
@@ -754,15 +755,15 @@ export class UserService {
     };
   }
 
-  async createForeignAccount(currency: string, user: User) {
-    if (user?.currency !== currency)
-      throw new BadRequestException(`Account must be of ${currency} type`);
+  async createForeignAccount(currency: CURRENCY, user: User) {
+    // if (user?.currency !== currency)
+    //   throw new BadRequestException(`Account must be of ${currency} type`);
 
     // check if the foreign wallet has been created before
     const wallet = await this.prisma.wallet.findFirst({
       where: {
-        currency,
         userId: user?.id,
+        currency,
       },
     });
 
@@ -782,23 +783,22 @@ export class UserService {
       throw error;
     }
 
-    const data = foreignAccount?.data;
-
-    const newWallet = await this.prisma.wallet.create({
-      data: {
-        userId: user.id,
-        accountName: `nattypay/${user?.fullname}`,
-        bankName: data?.bank_name,
-        accountNumber: data?.account_number,
-        accountRef: data?.account_reference,
-        bankCode: data?.bank_code,
-      },
-    });
+    console.log('foreign account created', foreignAccount);
+    // const newWallet = await this.prisma.wallet.create({
+    //   data: {
+    //     userId: user.id,
+    //     accountName: `nattypay/${user?.fullname}`,
+    //     bankName: foreignAccount?.bank_name,
+    //     accountNumber: foreignAccount?.account_number,
+    //     accountRef: foreignAccount?.account_reference,
+    //     bankCode: foreignAccount?.bank_code,
+    //   },
+    // });
 
     return {
       message: 'Wallet created succesfully',
       statusCode: HttpStatus.CREATED,
-      data: plainToInstance(WalletEntity, newWallet),
+      // data: plainToInstance(WalletEntity, newWallet),
     };
   }
 

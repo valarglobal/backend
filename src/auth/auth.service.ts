@@ -16,8 +16,6 @@ import { PasscodeLoginDto } from './dto/PasscodeLoginDto';
 import { ResetPasswordDto } from './dto/ResetPasswordDto';
 import { RegisterBusinessDto } from './dto/RegisterBusinessDto';
 import { REFERRAL_BONUS_PRICE } from 'src/constants';
-import { ValidatePhoneNumberDto } from '../user/dto/validatePhoneNumberDto';
-import { VerifyPhoneNumberDto } from '../user/dto/verifyPhoneNumberDto';
 
 @Injectable()
 export class AuthService {
@@ -28,7 +26,7 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async register(body: RegisterDto) {
+  async register(body: RegisterDto | RegisterBusinessDto) {
     const otpCode = this.generateOtp(6);
 
     return this.prisma
@@ -60,6 +58,11 @@ export class AuthService {
           dateOfBirth: body.dateOfBirth,
           accountType: body.accountType,
           isBusiness: body.accountType === ACCOUNT_TYPE.BUSINESS ? true : false,
+          currency: body.countryCode ?? 'NGN',
+          companyRegistrationNumber:
+            body.accountType === ACCOUNT_TYPE.BUSINESS
+              ? (body as RegisterBusinessDto)?.companyRegistrationNumber
+              : '',
         };
 
         if (body.referralCode) {
@@ -73,22 +76,26 @@ export class AuthService {
           });
 
           if (!referredUser)
-            throw new BadRequestException('Enter a valid referral code');
+            throw new BadRequestException('Invalid referral code');
+
+          const referredUserWallet = referredUser.wallet.find(
+            (wallet) => wallet.currency === body.countryCode,
+          );
+
+          if (!referredUserWallet) {
+            throw new BadRequestException('Invalid referral code');
+          }
 
           await tx.wallet.update({
             where: {
-              id: referredUser?.wallet?.id,
+              id: referredUserWallet.id,
             },
             data: {
-              balance: referredUser?.wallet?.balance + REFERRAL_BONUS_PRICE,
+              balance: referredUserWallet.balance + REFERRAL_BONUS_PRICE,
             },
           });
 
           payload.referredBy = referredUser?.id;
-        }
-
-        if (body.countryCode) {
-          payload.currency = body.countryCode ?? 'NGN';
         }
 
         const newUser = await tx.user.create({
@@ -148,8 +155,6 @@ export class AuthService {
       });
   }
 
-  async registerBusinessAccount(body: RegisterBusinessDto) {}
-
   async login(body: LoginDto) {
     const user = await this.prisma.user.findFirst({
       where: {
@@ -204,16 +209,36 @@ export class AuthService {
       throw new BadRequestException('Email not verified');
     }
 
-    try {
-      // send 2fa email
-      this.emailService.sendEmail({
-        to: user.email,
-        subject: 'Your Login Verification Code - NattyPay',
-        template: 'auth/2fa-email.hbs',
-        context: { firstName: user.fullname.split(' ')[0], otpCode },
+    let accessToken: string;
+    if (user.enabledTwoFa) {
+      try {
+        // send 2fa email
+        this.emailService.sendEmail({
+          to: user.email,
+          subject: 'Your Login Verification Code - NattyPay',
+          template: 'auth/2fa-email.hbs',
+          context: { firstName: user.fullname.split(' ')[0], otpCode },
+        });
+      } catch (error) {
+        console.log('error sending 2fa email', error);
+      }
+    } else {
+      const currentTokenVersion = this.getCurrentVersion(user);
+      const jwtPayload = {
+        sub: user.id,
+        email: user.email,
+        version: currentTokenVersion,
+      };
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { tokenVersion: currentTokenVersion },
       });
-    } catch (error) {
-      console.log('error sending 2fa email', error);
+
+      accessToken = await this.jwtService.signAsync(jwtPayload, {
+        secret: this.configService.get('JWT_SECRET'),
+        expiresIn: '1h',
+      });
     }
 
     if (body.deviceName && body.ipAddress && body.operatingSystem) {
@@ -240,6 +265,7 @@ export class AuthService {
       message: 'Login successful',
       user: plainToInstance(UserEntity, user),
       statusCode: HttpStatus.OK,
+      accessToken,
     };
   }
 

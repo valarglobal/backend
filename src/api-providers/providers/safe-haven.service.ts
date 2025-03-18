@@ -130,7 +130,10 @@ export class SafeHavenService {
     }
   }
 
-  async createSubAccount(body: safeHavenCreateAccount) {
+  async createSubAccount(
+    body: safeHavenCreateAccount,
+    type: 'personal' | 'business',
+  ) {
     try {
       const token = await this.getAccessToken();
 
@@ -153,7 +156,11 @@ export class SafeHavenService {
             'SAFEHAVE_DEBIT_ACCOUNT_NUMBER',
           ),
         },
-      };
+      } as any;
+
+      if (type === 'business') {
+        payload.companyRegistrationNumber = body?.companyRegistrationNumber;
+      }
 
       let response: any;
       try {
@@ -309,6 +316,7 @@ export class SafeHavenService {
       const wallet = await this.prisma.wallet.findFirst({
         where: {
           accountNumber: eventData?.creditAccountNumber,
+          currency: eventData?.currency ?? 'NGN',
         },
         include: {
           user: true,

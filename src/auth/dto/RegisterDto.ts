@@ -47,5 +47,5 @@ export class RegisterDto {
 
   @IsOptional()
   @IsEnum(ACCOUNT_TYPE)
-  accountType?: ACCOUNT_TYPE;
+  accountType?: ACCOUNT_TYPE = ACCOUNT_TYPE.PERSONAL;
 }

@@ -106,6 +106,7 @@ model User {
   currency CURRENCY @default(NGN)
   businessName String?
   isBusiness Boolean? @default(false)
+  companyRegistrationNumber String?
 
   otpToken  String?
   tokenVersion Int @default(0)
@@ -139,6 +140,8 @@ model User {
   scamTicketCount Int @default(0)
   dateOfBirth String?
 
+  enabledTwoFa Boolean @default(true)
+  
   status USER_ACCOUNT_STATUS @default(active)
 
   role USER_ROLE @default(USER)
@@ -150,7 +153,7 @@ model User {
   tierLevel TIER_LEVEL @default(notSet)
 
   // relationships
-  wallet Wallet?
+  wallet Wallet[]
   beneficiaries Beneficiary[]
   scamTicket  ScamTicket[]
 

@@ -12,6 +12,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { TransferDto } from './dto/TransferDto';
 import {
   BENEFICIARY_TYPE,
+  CURRENCY,
   Prisma,
   TIER_LEVEL,
   TRANSACTION_CATEGORY,
@@ -27,6 +28,8 @@ import { VerifyAccountDto } from './dto/VerifyAccountDto';
 import { InitiateBvnVerificationDto } from './dto/InitiateBvnVerificationDto';
 import { ValidateBvnVerificationDto } from './dto/ValidateBvnVerificationDto';
 import {
+  BUSINESS_TIER_ONE_CUMMULATIVE_BALANCE_LIMIT,
+  BUSINESS_TIER_ONE_DAILY_CUMMULATIVE_TRANSACTION_LIMIT,
   CONCURRENT_BASE_DELAY,
   CONCURRENT_MAX_RETRIES,
   defaultBankCode,
@@ -38,9 +41,7 @@ import * as bcrypt from 'bcrypt';
 import { Jimp } from 'jimp';
 import jsQR from 'jsqr';
 import { EmailService } from 'src/email/email.service';
-import getDebitSMSMessage from 'src/utils/debitSms';
 import getSMSAlertMessage from 'src/utils';
-import { PrismaModule } from 'src/prisma/prisma.module';
 
 @Injectable()
 export class WalletService {
@@ -251,7 +252,7 @@ export class WalletService {
         async (trx) => {
           // lock from wallet for updates
           const lockfromWallet: Wallet[] =
-            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid FOR UPDATE LIMIT 1`;
+            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid AND currency::text = ${body.currency.toString()} FOR UPDATE LIMIT 1`;
 
           fromWalletNewBalance = await this.deductBalance(
             lockfromWallet[0],
@@ -305,7 +306,7 @@ export class WalletService {
         async (trx) => {
           // lock from wallet for updates
           const lockfromWallet: Wallet[] =
-            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid FOR UPDATE LIMIT 1`;
+            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid AND currency::text = ${body.currency.toString()} FOR UPDATE LIMIT 1`;
 
           fromWalletNewBalance = await this.deductBalance(
             lockfromWallet[0],
@@ -436,10 +437,10 @@ export class WalletService {
         async (trx) => {
           // lock from wallet for updates
           const lockfromWallet: Wallet[] =
-            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid FOR UPDATE LIMIT 1`;
+            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid AND currency::text = ${body.currency.toString()} FOR UPDATE LIMIT 1`;
 
           const lockToWallet: Wallet[] =
-            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${toWallet.id}::uuid FOR UPDATE LIMIT 1`;
+            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${toWallet.id}::uuid AND currency::text = ${body.currency.toString()} FOR UPDATE LIMIT 1`;
 
           fromWalletNewBalance = await this.deductBalance(
             lockfromWallet[0],
@@ -524,7 +525,7 @@ export class WalletService {
         async (trx) => {
           // lock from wallet for updates
           const lockfromWallet: Wallet[] =
-            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid FOR UPDATE LIMIT 1`;
+            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid AND currency::text = ${body.currency.toString()} FOR UPDATE LIMIT 1`;
 
           fromWalletNewBalance = await this.deductBalance(
             lockfromWallet[0],
@@ -575,6 +576,7 @@ export class WalletService {
     body: TransferDto,
     user: User & { wallet?: Wallet },
     fee: number,
+    currency: CURRENCY,
   ) {
     const MAX_RETRIES = CONCURRENT_MAX_RETRIES;
     const BASE_DELAY = CONCURRENT_BASE_DELAY;
@@ -583,10 +585,10 @@ export class WalletService {
       try {
         await this.prisma.$transaction(async (trx) => {
           const lockfromWallet: Wallet[] =
-            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid FOR UPDATE SKIP LOCKED LIMIT 1`;
+            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid AND currency::text = ${currency.toString()} FOR UPDATE SKIP LOCKED LIMIT 1`;
 
           const locktoWallet: Wallet[] =
-            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${toWallet.id}::uuid FOR UPDATE SKIP LOCKED LIMIT 1`;
+            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${toWallet.id}::uuid AND currency::text = ${currency.toString()} FOR UPDATE SKIP LOCKED LIMIT 1`;
 
           // check if beneficiary is to be added
           if (body?.addBeneficiary) {
@@ -884,6 +886,7 @@ export class WalletService {
     body: TransferDto,
     user: User & { wallet?: Wallet },
     fee: number,
+    currency: CURRENCY,
   ) {
     const MAX_RETRIES = CONCURRENT_MAX_RETRIES;
     const BASE_DELAY = CONCURRENT_BASE_DELAY;
@@ -898,9 +901,11 @@ export class WalletService {
       // create a pending transaction
       await this.prisma.$transaction(
         async (trx) => {
+          console.log('before currency', currency);
           const lockfromWallet: Wallet[] =
-            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid FOR UPDATE SKIP LOCKED LIMIT 1`;
+            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid AND currency::text = ${currency.toString()} FOR UPDATE SKIP LOCKED LIMIT 1`;
 
+          console.log('after currency');
           if (!lockfromWallet.length || !lockfromWallet[0]) {
             throw new ConflictException(
               'Unable to access wallet at this time, please try again',
@@ -972,7 +977,7 @@ export class WalletService {
           // refund's user wallet
           await this.prisma.$transaction(async (trx) => {
             const lockfromWallet: Wallet[] =
-              await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid FOR UPDATE SKIP LOCKED LIMIT 1`;
+              await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid AND currency::text = ${currency.toString()} FOR UPDATE SKIP LOCKED LIMIT 1`;
 
             if (!lockfromWallet.length || !lockfromWallet[0]) {
               throw new ConflictException(
@@ -1144,7 +1149,7 @@ export class WalletService {
         // refund's  user wallet
         await this.prisma.$transaction(async (trx) => {
           const lockfromWallet: Wallet[] =
-            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid FOR UPDATE SKIP LOCKED LIMIT 1`;
+            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid AND currency::text = ${currency.toString()} FOR UPDATE SKIP LOCKED LIMIT 1`;
 
           if (!lockfromWallet.length || !lockfromWallet[0]) {
             throw new ConflictException(
@@ -1261,6 +1266,7 @@ export class WalletService {
         body,
         user,
         fee,
+        body.currency,
       );
     }
 
@@ -1270,6 +1276,7 @@ export class WalletService {
       body,
       user,
       fee,
+      body.currency,
     );
   }
 
@@ -1482,6 +1489,7 @@ export class WalletService {
         },
         body?.verificationId,
         body?.otpCode,
+        body?.isBusiness ? 'business' : 'personal',
       );
     } catch (error) {
       throw new BadRequestException('Failed to validate BVN');
@@ -1494,9 +1502,12 @@ export class WalletService {
         isBvnVerified: true,
         bvn: body.bvn,
         tierLevel: TIER_LEVEL.one,
-        dailyCummulativeTransactionLimit:
-          TIER_ONE_DAILY_CUMMULATIVE_TRANSACTION_LIMIT,
-        cummulativeBalanceLimit: TIER_ONE_CUMMULATIVE_BALANCE_LIMIT,
+        dailyCummulativeTransactionLimit: body.isBusiness
+          ? BUSINESS_TIER_ONE_DAILY_CUMMULATIVE_TRANSACTION_LIMIT
+          : TIER_ONE_DAILY_CUMMULATIVE_TRANSACTION_LIMIT,
+        cummulativeBalanceLimit: body.isBusiness
+          ? BUSINESS_TIER_ONE_CUMMULATIVE_BALANCE_LIMIT
+          : TIER_ONE_CUMMULATIVE_BALANCE_LIMIT,
       },
     });
 

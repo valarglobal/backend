@@ -8,6 +8,7 @@ import { WalletModule } from 'src/wallet/wallet.module';
 import { ReloadlyService } from './providers/reloadly.service';
 import { VFDBankService } from './providers/VFDBank.service';
 import { EmailModule } from 'src/email/email.module';
+import { GraphService } from './providers/graph.service';
 
 @Module({
   imports: [PrismaModule, EmailModule],
@@ -18,6 +19,7 @@ import { EmailModule } from 'src/email/email.module';
     FlutterwaveService,
     ReloadlyService,
     VFDBankService,
+    GraphService,
   ],
   exports: [
     SafeHavenService,
@@ -26,6 +28,7 @@ import { EmailModule } from 'src/email/email.module';
     FlutterwaveService,
     ReloadlyService,
     VFDBankService,
+    GraphService,
   ],
 })
 export class ApiProvidersModule {}

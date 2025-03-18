@@ -55,6 +55,8 @@ import { TestFolderModule } from './test-folder/test-folder.module';
         SAFEHAVEN_CLIENT_ASSERTION: Joi.string().required(),
         SAFEHAVEN_CLIENT_ID: Joi.string().required(),
         SAFEHAVE_DEBIT_ACCOUNT_NUMBER: Joi.string().required(),
+        GRAPH_API_KEY: Joi.string().required(),
+        GRAPH_BASE_URL: Joi.string().required(),
       }),
     }),
     PrismaModule,

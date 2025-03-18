@@ -664,7 +664,7 @@ export class BillService {
           // refund's  user wallet
           await this.prisma.$transaction(async (trx) => {
             const lockfromWallet: Wallet[] =
-              await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${lockWallet[0]?.id}::uuid FOR UPDATE SKIP LOCKED LIMIT 1`;
+              await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${lockWallet[0]?.id}::uuid AND currency::text = ${body.currency.toString()} FOR UPDATE SKIP LOCKED LIMIT 1`;
 
             if (!lockfromWallet.length || !lockfromWallet[0]) {
               throw new ConflictException(
@@ -799,7 +799,7 @@ export class BillService {
         // refund's  user wallet
         await this.prisma.$transaction(async (trx) => {
           const lockfromWallet: Wallet[] =
-            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${lockWallet[0]?.id}::uuid FOR UPDATE SKIP LOCKED LIMIT 1`;
+            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${lockWallet[0]?.id}::uuid AND currency::text = ${body.currency.toString()}  FOR UPDATE SKIP LOCKED LIMIT 1`;
 
           if (!lockfromWallet.length || !lockfromWallet[0]) {
             throw new ConflictException(

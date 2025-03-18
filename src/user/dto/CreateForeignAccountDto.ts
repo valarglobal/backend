@@ -1,7 +1,8 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { CURRENCY } from '@prisma/client';
+import { IsEnum, IsNotEmpty } from 'class-validator';
 
 export class CreateForeignAccountDto {
   @IsNotEmpty()
-  @IsString()
-  currency: string;
+  @IsEnum(CURRENCY)
+  currency: CURRENCY;
 }

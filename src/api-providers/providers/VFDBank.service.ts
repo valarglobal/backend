@@ -377,6 +377,7 @@ export class VFDBankService {
         const wallet = await trx.wallet.findFirst({
           where: {
             accountNumber: body?.account_number,
+            currency: data?.currency ?? 'NGN',
           },
         });
 

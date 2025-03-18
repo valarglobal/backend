@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { SafeHavenService } from './providers/safe-haven.service';
-import { User } from '@prisma/client';
+import { CURRENCY, User } from '@prisma/client';
 import { DojahService } from './providers/dojah.service';
 import { FlutterwaveService } from './providers/flutterwave.service';
 import { TransferDto } from 'src/wallet/dto/TransferDto';
@@ -17,6 +17,7 @@ import { ConfigService } from '@nestjs/config';
 import { ValidateBvnVerificationDto } from 'src/wallet/dto/ValidateBvnVerificationDto';
 import { defaultBankName } from 'src/constants';
 import { getAllISOCodes } from 'iso-country-currency';
+import { GraphService } from './providers/graph.service';
 
 @Injectable()
 export class ApiProviderService {
@@ -26,6 +27,7 @@ export class ApiProviderService {
     private readonly reloadlyService: ReloadlyService,
     private readonly VFDBankService: VFDBankService,
     private readonly safeHavenService: SafeHavenService,
+    private readonly graphService: GraphService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -57,6 +59,7 @@ export class ApiProviderService {
     user: User,
     verificationId?: string,
     otpCode?: string,
+    type?: 'personal' | 'business',
   ): Promise<{
     account_name: string;
     account_number: string;
@@ -92,14 +95,18 @@ export class ApiProviderService {
 
     //safe haven bank
 
-    const res = await this.safeHavenService.createSubAccount({
-      phoneNumber: this.addCountryCode(user?.phoneNumber),
-      emailAddress: user?.email,
-      externalReference: user?.id,
-      bvn,
-      verificationId,
-      otpCode,
-    });
+    const res = await this.safeHavenService.createSubAccount(
+      {
+        phoneNumber: this.addCountryCode(user?.phoneNumber),
+        emailAddress: user?.email,
+        externalReference: user?.id,
+        bvn,
+        verificationId,
+        otpCode,
+        companyRegistrationNumber: user?.companyRegistrationNumber,
+      },
+      type ? type : 'personal',
+    );
 
     console.log('create account res', res);
     return {
@@ -180,13 +187,25 @@ export class ApiProviderService {
     );
   }
 
-  async createForeignAccout(currency: string, user: User) {
-    return this.flutterwaveService.createForeignAccount({
-      account_name: `nattypay/${user?.fullname}`,
-      email: user?.email,
-      // mobilenumber: '010101010',
-      country: this.getCountryCodeFromCurrency(currency),
-    });
+  async createForeignAccout(currency: CURRENCY, user: User) {
+    // return this.flutterwaveService.createForeignAccount({
+    //   account_name: `nattypay/${user?.fullname}`,
+    //   email: user?.email,
+    //   // mobilenumber: '010101010',
+    //   country: this.getCountryCodeFromCurrency(currency),
+    // });
+    return this.graphService.createAccount(
+      {
+        name_first: user?.fullname.split(' ')[0],
+        name_last: user?.fullname.split(' ')[1],
+        name_other: user?.fullname.split(' ')[2] || 'none',
+        phone: user?.phoneNumber,
+        email: user?.email,
+        dob: user?.dateOfBirth,
+      },
+      'NG',
+      currency,
+    );
   }
 
   async verifyBvn(bvn: string) {

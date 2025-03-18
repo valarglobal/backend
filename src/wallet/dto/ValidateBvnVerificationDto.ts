@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class ValidateBvnVerificationDto {
   @IsNotEmpty()
@@ -12,4 +12,8 @@ export class ValidateBvnVerificationDto {
   @IsNotEmpty()
   @IsString()
   otpCode: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isBusiness: boolean = false;
 }

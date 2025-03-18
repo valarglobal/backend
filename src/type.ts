@@ -15,7 +15,10 @@ interface SafeHavenAccount {
   verificationId?: string;
   otpCode?: string;
 }
-interface safeHavenCreateAccount extends SafeHavenAccount {}
+
+interface safeHavenCreateAccount extends SafeHavenAccount {
+  companyRegistrationNumber?: string;
+}
 
 interface safeHavenCreateBusinessAccount extends SafeHavenAccount {
   companyRegistrationNumber: string;
