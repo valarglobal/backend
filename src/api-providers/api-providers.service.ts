@@ -18,6 +18,7 @@ import { ValidateBvnVerificationDto } from 'src/wallet/dto/ValidateBvnVerificati
 import { defaultBankName } from 'src/constants';
 import { getAllISOCodes } from 'iso-country-currency';
 import { GraphService } from './providers/graph.service';
+import { TermiiService } from './providers/termii.service';
 
 @Injectable()
 export class ApiProviderService {
@@ -29,13 +30,25 @@ export class ApiProviderService {
     private readonly safeHavenService: SafeHavenService,
     private readonly graphService: GraphService,
     private readonly configService: ConfigService,
+    private readonly termiiService: TermiiService,
   ) {}
 
-  async sendSms(phoneNumber: string, message: string) {
-    return this.dojahService.sendSms({
-      phoneNumber: this.addCountryCode(phoneNumber),
-      message,
-    });
+  async sendSms(
+    phoneNumber: string,
+    message: string,
+    type: 'dojah' | 'termii',
+  ) {
+    if (type === 'dojah') {
+      return this.dojahService.sendSms({
+        phoneNumber: this.addCountryCode(phoneNumber),
+        message,
+      });
+    } else if (type === 'termii') {
+      return this.termiiService.sendSms({
+        phoneNumber: this.addCountryCode(phoneNumber),
+        message,
+      });
+    }
   }
 
   async getSafeHavenBankName(bankCode: string) {

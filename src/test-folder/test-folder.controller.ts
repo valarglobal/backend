@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { CURRENCY } from '@prisma/client';
 import { VFDBankService } from 'src/api-providers/providers/VFDBank.service';
+import { TermiiService } from 'src/api-providers/providers/termii.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Controller('v1/test-folder')
@@ -8,6 +9,7 @@ export class TestFolderController {
   constructor(
     private readonly VFDBankService: VFDBankService,
     private readonly prisma: PrismaService,
+    private readonly TermiiService: TermiiService,
   ) {}
 
   @Post('test-route')
@@ -53,5 +55,18 @@ export class TestFolderController {
   @Get('get-banks')
   async getbanks() {
     return this.VFDBankService.getBankList();
+  }
+
+  @Post('send-sms')
+  async setSms(@Body() body: any) {
+    try {
+      return await this.TermiiService.sendSms({
+        phoneNumber: body.phoneNumber,
+        message:
+          'Your NattyPay verification is 7548.valid for 10 minutes, Do not share this code with anyone, thank you',
+      });
+    } catch (error) {
+      console.log('error from send-sms', error);
+    }
   }
 }

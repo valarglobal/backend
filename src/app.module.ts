@@ -57,6 +57,8 @@ import { TestFolderModule } from './test-folder/test-folder.module';
         SAFEHAVE_DEBIT_ACCOUNT_NUMBER: Joi.string().required(),
         GRAPH_API_KEY: Joi.string().required(),
         GRAPH_BASE_URL: Joi.string().required(),
+        TERMII_API_KEY: Joi.string().required(),
+        TERMII_BASE_URL: Joi.string().required(),
       }),
     }),
     PrismaModule,

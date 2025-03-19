@@ -914,7 +914,11 @@ export class UserService {
 
     let res: any;
     try {
-      res = await this.apiProvider.sendSms(body.phoneNumber, otpMessage);
+      res = await this.apiProvider.sendSms(
+        body.phoneNumber,
+        otpMessage,
+        'termii',
+      );
     } catch (error) {
       console.log('error sending sms', error);
       throw error;
