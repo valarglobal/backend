@@ -917,7 +917,7 @@ export class UserService {
       res = await this.apiProvider.sendSms(
         body.phoneNumber,
         otpMessage,
-        'termii',
+        'dojah',
       );
     } catch (error) {
       console.log('error sending sms', error);

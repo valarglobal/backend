@@ -746,7 +746,7 @@ export class BillService {
             bill_type === BILL_TYPE.electricity ? res?.recharge_token : '',
           );
 
-          this.apiProvider.sendSms(user?.phoneNumber, smsMessage, 'termii');
+          this.apiProvider.sendSms(user?.phoneNumber, smsMessage, 'dojah');
         } catch (error) {
           console.log('error while sending sms message', error);
         }

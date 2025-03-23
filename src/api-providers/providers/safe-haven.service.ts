@@ -232,7 +232,6 @@ export class SafeHavenService {
         },
       );
     } catch (error) {
-      console.log('error ', error);
       throw error;
     }
 

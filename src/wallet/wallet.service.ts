@@ -745,7 +745,7 @@ export class WalletService {
                 maskedRAccountNumber,
                 toWallet.bankName.toUpperCase(),
               ),
-              'termii',
+              'dojah',
             );
           } catch (error) {
             console.log('Error sending debit transfer alert', error);
@@ -815,7 +815,7 @@ export class WalletService {
                 maskedRAccountNumber,
                 fromWallet.bankName.toLowerCase(),
               ),
-              'termii',
+              'dojah',
             );
           } catch (error) {
             console.log('Error sending credit transfer alert', error);
@@ -1108,7 +1108,7 @@ export class WalletService {
               maskedRAccountNumber,
               beneficiaryBankName.toUpperCase(),
             ),
-            'termii',
+            'dojah',
           );
         } catch (error) {
           console.log('Error sending transfer alert', error);
@@ -1305,12 +1305,17 @@ export class WalletService {
     };
   }
 
-  async generateQrCode(user: User & { wallet?: any }, amount: number) {
+  async generateQrCode(
+    user: User & { wallet?: Wallet[] },
+    amount: number,
+    currency: CURRENCY,
+  ) {
     // verify account number to get the sessionId
     let data: any;
+    const wallet = user?.wallet?.find((w: Wallet) => w.currency === currency);
     try {
       data = await this.apiProvider.verifyAccount(
-        user?.wallet?.accountNumber,
+        wallet?.accountNumber,
         defaultBankCode,
       );
     } catch (error) {
@@ -1321,8 +1326,8 @@ export class WalletService {
     // transfer details data
     const transferData = {
       bankCode: defaultBankCode,
-      accountNumber: user?.wallet?.accountNumber,
-      currency: user?.wallet?.currency,
+      accountNumber: wallet?.accountNumber,
+      currency: wallet?.currency,
       fee: 0,
       amount: Number(amount),
       sessionId: data?.data?.sessionId,

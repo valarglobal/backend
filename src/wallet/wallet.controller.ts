@@ -13,6 +13,7 @@ import { WalletService } from './wallet.service';
 import { Request } from 'express';
 import { TransferDto } from './dto/TransferDto';
 import {
+  CURRENCY,
   TRANSACTION_CATEGORY,
   TRANSACTION_STATUS,
   TRANSACTION_TYPE,
@@ -78,7 +79,7 @@ export class WalletController {
   @Get('generate-qrcode')
   async generateQrCode(@Req() req: Request, @Query('amount') amount: number) {
     const user = req['user'];
-    return this.walletService.generateQrCode(user, amount);
+    return this.walletService.generateQrCode(user, amount, CURRENCY.NGN);
   }
 
   @Post('decode-qrcode')
