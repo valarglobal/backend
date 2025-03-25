@@ -651,37 +651,6 @@ export class BillService {
           }
         } catch (error) {
           console.error(`Error paying for ${bill_type}`, error);
-          // Create failed bill debit transaction
-          await this.prisma.transaction.update({
-            where: {
-              id: pendingTransactionId,
-            },
-            data: {
-              status: TRANSACTION_STATUS.failed,
-            },
-          });
-
-          // refund's  user wallet
-          await this.prisma.$transaction(async (trx) => {
-            const lockfromWallet: Wallet[] =
-              await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${lockWallet[0]?.id}::uuid AND currency::text = ${body.currency.toString()} FOR UPDATE SKIP LOCKED LIMIT 1`;
-
-            if (!lockfromWallet.length || !lockfromWallet[0]) {
-              throw new ConflictException(
-                'Unable to access wallet at this time, please try again',
-              );
-            }
-
-            await trx.wallet.update({
-              where: {
-                id: lockfromWallet[0]?.id,
-              },
-              data: {
-                balance: lockfromWallet[0]?.balance + body?.amount,
-              },
-            });
-          });
-
           throw new InternalServerErrorException('Payment processing failed');
         }
 
@@ -786,13 +755,14 @@ export class BillService {
           continue;
         }
 
-        // Create failed bill debit transaction
+        // update the pending trx to failed
         await this.prisma.transaction.update({
           where: {
             id: pendingTransactionId,
           },
           data: {
             status: TRANSACTION_STATUS.failed,
+            currentBalance: oldBalance + body?.amount,
           },
         });
 

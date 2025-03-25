@@ -69,11 +69,12 @@ export class UserService {
 
   async getBeneficiaries(
     category: BENEFICIARY_TYPE,
-    transferType: string,
+    transferType: 'inter' | 'intra',
     billType: BILL_TYPE,
     user: User,
   ) {
     let result: any;
+
     if (category === BENEFICIARY_TYPE.TRANSFER) {
       if (transferType === 'intra') {
         // Get beneficiaries where the linked wallet has an accountName that starts with "NATTYPAYGLOBALS"

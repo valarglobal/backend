@@ -967,29 +967,6 @@ export class WalletService {
         );
 
         if (res?.statusCode !== 200) {
-          await this.prisma.transaction.update({
-            where: {
-              id: pendingTransactionId,
-            },
-            data: {
-              status: TRANSACTION_STATUS.failed,
-            },
-          });
-
-          // refund's user wallet
-          await this.prisma.$transaction(async (trx) => {
-            const lockfromWallet: Wallet[] =
-              await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${fromWallet.id}::uuid AND currency::text = ${currency.toString()} FOR UPDATE SKIP LOCKED LIMIT 1`;
-
-            if (!lockfromWallet.length || !lockfromWallet[0]) {
-              throw new ConflictException(
-                'Unable to access wallet at this time, please try again',
-              );
-            }
-
-            await this.addbalance(lockfromWallet[0], amountPaid, trx);
-          });
-
           throw new InternalServerErrorException('Transfer processing failed');
         }
 
@@ -1140,12 +1117,14 @@ export class WalletService {
           continue;
         }
 
+        // update the trx to failed
         await this.prisma.transaction.update({
           where: {
             id: pendingTransactionId,
           },
           data: {
             status: TRANSACTION_STATUS.failed,
+            currentBalance: fromWalletNewBalance - body.amount,
           },
         });
 
