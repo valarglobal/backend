@@ -1,4 +1,4 @@
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { SafeHavenService } from './providers/safe-haven.service';
 import { ApiProviderService } from './api-providers.service';
 import { DojahService } from './providers/dojah.service';
@@ -9,28 +9,34 @@ import { VFDBankService } from './providers/VFDBank.service';
 import { EmailModule } from 'src/email/email.module';
 import { GraphService } from './providers/graph.service';
 import { TermiiService } from './providers/termii.service';
+import { AwsService } from './providers/aws.service';
+import { HelperService } from './providers/helper.service';
 
 @Module({
   imports: [PrismaModule, EmailModule],
   providers: [
-    SafeHavenService,
     ApiProviderService,
+    SafeHavenService,
     DojahService,
     FlutterwaveService,
     ReloadlyService,
     VFDBankService,
     GraphService,
     TermiiService,
+    AwsService,
+    HelperService,
   ],
   exports: [
-    SafeHavenService,
     ApiProviderService,
+    SafeHavenService,
     DojahService,
     FlutterwaveService,
     ReloadlyService,
     VFDBankService,
     GraphService,
     TermiiService,
+    AwsService,
+    HelperService,
   ],
 })
 export class ApiProvidersModule {}

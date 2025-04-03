@@ -2,7 +2,7 @@ import { BILL_TYPE } from '@prisma/client';
 import getCreditSMSMessage from './creditSms';
 import getDebitSMSMessage from './debitSms';
 
-export default function getSMSAlertMessage(
+export function getSMSAlertMessage(
   amount: string,
   recipient: string,
   sender: string,

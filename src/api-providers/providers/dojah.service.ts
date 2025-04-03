@@ -11,7 +11,11 @@ import axios from 'axios';
 export class DojahService {
   constructor(private readonly configService: ConfigService) {}
 
-  async sendSms(data: { phoneNumber: string; message: string }) {
+  async sendSms(data: {
+    phoneNumber: string;
+    message: string;
+    channel?: 'sms' | 'whatsapp';
+  }) {
     const url =
       this.configService.get<string>('DOJAH_BASE_URL') +
       '/api/v1/messaging/sms';
@@ -19,7 +23,7 @@ export class DojahService {
     const payload = {
       destination: data.phoneNumber,
       message: data.message,
-      channel: 'sms',
+      channel: data.channel,
       sender_id: 'NattyPay',
     };
 

@@ -59,6 +59,9 @@ import { TestFolderModule } from './test-folder/test-folder.module';
         GRAPH_BASE_URL: Joi.string().required(),
         TERMII_API_KEY: Joi.string().required(),
         TERMII_BASE_URL: Joi.string().required(),
+        AWS_ACCESS_KEY_ID: Joi.string().required(),
+        AWS_SECRET_ACCESS_KEY: Joi.string().required(),
+        AWS_REGION: Joi.string().required(),
       }),
     }),
     PrismaModule,
@@ -89,6 +92,7 @@ export class AppModule implements NestModule {
         { path: 'v1/test-folder/create-account', method: RequestMethod.POST },
         { path: 'v1/test-folder/credit-account', method: RequestMethod.POST },
         { path: 'v1/test-folder/get-banks', method: RequestMethod.GET },
+        { path: 'v1/test-folder/send-sms', method: RequestMethod.POST },
       )
       .forRoutes('*');
 
@@ -114,6 +118,9 @@ export class AppModule implements NestModule {
         { path: 'v1/test-folder/credit-account', method: RequestMethod.POST },
         { path: 'v1/test-folder/get-banks', method: RequestMethod.GET },
         { path: 'v1/contact-us', method: RequestMethod.POST },
+
+        //test routes - remove this  later
+        { path: 'v1/test-folder/send-sms', method: RequestMethod.POST },
       )
       .forRoutes('*');
   }

@@ -41,7 +41,7 @@ import { VerifyBillerDto } from './dto/VerifyBillerDto';
 import { PayBillDto } from './dto/PayBillDto';
 import * as bcrypt from 'bcrypt';
 import parsePhoneNumber, { PhoneNumber } from 'libphonenumber-js';
-import getSMSAlertMessage from 'src/utils';
+import { getSMSAlertMessage } from 'src/utils';
 
 @Injectable()
 export class BillService {
@@ -715,7 +715,7 @@ export class BillService {
             bill_type === BILL_TYPE.electricity ? res?.recharge_token : '',
           );
 
-          this.apiProvider.sendSms(user?.phoneNumber, smsMessage, 'dojah');
+          this.apiProvider.sendSms(user?.phoneNumber, smsMessage, 'termii');
         } catch (error) {
           console.log('error while sending sms message', error);
         }

@@ -9,9 +9,8 @@ import axios from 'axios';
 import { defaultBankName } from 'src/constants';
 import { EmailService } from 'src/email/email.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { ApiProviderService } from '../api-providers.service';
-import getSMSAlertMessage from 'src/utils';
-import { DojahService } from './dojah.service';
+import { getSMSAlertMessage } from 'src/utils';
+import { HelperService } from './helper.service';
 
 @Injectable()
 export class SafeHavenService {
@@ -26,7 +25,7 @@ export class SafeHavenService {
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
-    private readonly dojahService: DojahService,
+    private readonly helperService: HelperService,
   ) {}
 
   async getAccessToken(refreshToken?: string) {
@@ -430,9 +429,9 @@ export class SafeHavenService {
         });
 
         //send credit sms alert
-        this.dojahService.sendSms({
-          phoneNumber: wallet.user.phoneNumber,
-          message: getSMSAlertMessage(
+        this.helperService.sendSms(
+          wallet.user.phoneNumber,
+          getSMSAlertMessage(
             amount,
             wallet?.accountName,
             eventData?.debitAccountName,
@@ -447,7 +446,8 @@ export class SafeHavenService {
             maskedRAccountNumber,
             senderBankName.toUpperCase(),
           ),
-        });
+          'termii',
+        );
       } catch (error) {
         console.log('Error sending deposit alert', error);
       }

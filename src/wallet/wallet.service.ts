@@ -41,7 +41,7 @@ import * as bcrypt from 'bcrypt';
 import { Jimp } from 'jimp';
 import jsQR from 'jsqr';
 import { EmailService } from 'src/email/email.service';
-import getSMSAlertMessage from 'src/utils';
+import { getSMSAlertMessage } from 'src/utils';
 
 @Injectable()
 export class WalletService {
@@ -745,7 +745,7 @@ export class WalletService {
                 maskedRAccountNumber,
                 toWallet.bankName.toUpperCase(),
               ),
-              'dojah',
+              'termii',
             );
           } catch (error) {
             console.log('Error sending debit transfer alert', error);
@@ -815,7 +815,7 @@ export class WalletService {
                 maskedRAccountNumber,
                 fromWallet.bankName.toLowerCase(),
               ),
-              'dojah',
+              'termii',
             );
           } catch (error) {
             console.log('Error sending credit transfer alert', error);
@@ -1085,7 +1085,7 @@ export class WalletService {
               maskedRAccountNumber,
               beneficiaryBankName.toUpperCase(),
             ),
-            'dojah',
+            'termii',
           );
         } catch (error) {
           console.log('Error sending transfer alert', error);

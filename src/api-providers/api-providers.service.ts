@@ -18,7 +18,7 @@ import { ValidateBvnVerificationDto } from 'src/wallet/dto/ValidateBvnVerificati
 import { defaultBankName } from 'src/constants';
 import { getAllISOCodes } from 'iso-country-currency';
 import { GraphService } from './providers/graph.service';
-import { TermiiService } from './providers/termii.service';
+import { HelperService } from './providers/helper.service';
 
 @Injectable()
 export class ApiProviderService {
@@ -30,25 +30,16 @@ export class ApiProviderService {
     private readonly safeHavenService: SafeHavenService,
     private readonly graphService: GraphService,
     private readonly configService: ConfigService,
-    private readonly termiiService: TermiiService,
+    private readonly helperService: HelperService,
   ) {}
 
   async sendSms(
     phoneNumber: string,
     message: string,
-    type: 'dojah' | 'termii',
+    type: 'dojah' | 'termii' | 'aws',
+    channel: 'sms' | 'whatsapp' = 'sms',
   ) {
-    if (type === 'dojah') {
-      return this.dojahService.sendSms({
-        phoneNumber: this.addCountryCode(phoneNumber),
-        message,
-      });
-    } else if (type === 'termii') {
-      return this.termiiService.sendSms({
-        phoneNumber: this.addCountryCode(phoneNumber),
-        message,
-      });
-    }
+    return this.helperService.sendSms(phoneNumber, message, type, channel);
   }
 
   async getSafeHavenBankName(bankCode: string) {
@@ -56,15 +47,7 @@ export class ApiProviderService {
   }
 
   addCountryCode(phoneNumber: string) {
-    // Check if the phone number already starts with '+234'
-    if (phoneNumber.startsWith('+234')) {
-      return phoneNumber;
-    }
-    // Remove leading zeros and add '+234'
-    if (phoneNumber.startsWith('0')) {
-      phoneNumber = phoneNumber.substring(1);
-    }
-    return '+234' + phoneNumber;
+    return this.helperService.addCountryCode(phoneNumber);
   }
 
   async createVirtualAccount(
