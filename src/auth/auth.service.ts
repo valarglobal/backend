@@ -200,7 +200,7 @@ export class AuthService {
           to: user.email,
           subject: 'Verify Your Email Address',
           template: 'auth/verify-email.hbs',
-          context: { otpCode },
+          context: { otpCode, year: new Date().getFullYear() },
         });
       } catch (error) {
         console.log('Error sending verification email', error);
