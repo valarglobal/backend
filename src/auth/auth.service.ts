@@ -141,7 +141,7 @@ export class AuthService {
             to: savedUser.email,
             subject: 'Verify Your Email Address',
             template: 'auth/verify-email.hbs',
-            context: { otpCode: otpCode },
+            context: { otpCode: otpCode, year: new Date().getFullYear() },
           });
         } catch (error) {
           console.log('Error sending verification email', error);
@@ -340,7 +340,7 @@ export class AuthService {
         to: user.email,
         subject: 'Verify your email',
         template: 'auth/verify-email.hbs',
-        context: { otpCode: otpCode },
+        context: { otpCode: otpCode, year: new Date().getFullYear() },
       });
     } catch (error) {
       console.log('error sending verification email', error);
