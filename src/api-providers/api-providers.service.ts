@@ -31,12 +31,12 @@ export class ApiProviderService {
     private readonly graphService: GraphService,
     private readonly configService: ConfigService,
     private readonly helperService: HelperService,
-  ) {}
+  ) { }
 
   async sendSms(
     phoneNumber: string,
     message: string,
-    type: 'dojah' | 'termii' | 'aws',
+    type: 'dojah' | 'termii' | 'aws' | 'sendar',
     channel: 'sms' | 'whatsapp' = 'sms',
   ) {
     return this.helperService.sendSms(phoneNumber, message, type, channel);

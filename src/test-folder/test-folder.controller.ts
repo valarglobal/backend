@@ -12,7 +12,7 @@ export class TestFolderController {
     private readonly prisma: PrismaService,
     private readonly TermiiService: TermiiService,
     private readonly apiProviderService: ApiProviderService,
-  ) {}
+  ) { }
 
   @Post('test-route')
   async testRoute(@Body() body: any) {
@@ -64,8 +64,8 @@ export class TestFolderController {
     try {
       return await this.apiProviderService.sendSms(
         body.phoneNumber,
-        'Your NattyPay verification is 7548.valid for 10 minutes, Do not share this code with anyone, thank you',
-        'aws',
+        'Your ValarPay verification is 7548.valid for 10 minutes, Do not share this code with anyone, thank you',
+        'sendar',
       );
     } catch (error) {
       console.log('error from send-sms', error);

@@ -65,7 +65,7 @@ export class UserService {
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   async getBeneficiaries(
     category: BENEFICIARY_TYPE,
@@ -82,7 +82,7 @@ export class UserService {
           where: {
             userId: user.id,
             type: category,
-            accountName: { startsWith: 'NATTYPAYGLOBALS' },
+            accountName: { startsWith: 'VALARPAYGLOBALS' },
           },
         });
       } else if (transferType === 'inter') {
@@ -92,7 +92,7 @@ export class UserService {
             userId: user.id,
             type: category,
             NOT: {
-              accountName: { startsWith: 'NATTYPAYGLOBALS' },
+              accountName: { startsWith: 'VALARPAYGLOBALS' },
             },
           },
         });
@@ -454,7 +454,7 @@ export class UserService {
       // send user email to reset password
       this.emailService.sendEmail({
         to: user.email,
-        subject: 'Reset Password - NattyPay',
+        subject: 'Reset Password - ValarPay',
         template: 'user/request-change-password.hbs',
         context: { firstName: user.fullname.split(' ')[0], otpCode },
       });
@@ -539,7 +539,7 @@ export class UserService {
       // send reset email
       this.emailService.sendEmail({
         to: user.email,
-        subject: 'Reset Wallet Pin - NattyPay',
+        subject: 'Reset Wallet Pin - ValarPay',
         template: 'user/reset-pin-email.hbs',
         context: { firstName: user.fullname.split(' ')[0], otpCode: otpCode },
       });
@@ -911,7 +911,7 @@ export class UserService {
       data: { otpToken },
     });
 
-    const otpMessage = `Your NattyPay verification code is ${otpCode}. Valid for 10 minutes. Do not share this code with anyone.`;
+    const otpMessage = `Your ValarPay verification code is ${otpCode}. Valid for 10 minutes. Do not share this code with anyone.`;
 
     let res: any;
     try {
@@ -1040,11 +1040,11 @@ export class UserService {
 
     if (
       res?.entity?.state_of_residence.toLocaleLowerCase() !==
-        body?.state.toLocaleLowerCase() ||
+      body?.state.toLocaleLowerCase() ||
       res?.entity?.residential_address.toLocaleLowerCase() !==
-        body?.address.toLocaleLowerCase() ||
+      body?.address.toLocaleLowerCase() ||
       res?.entity?.lga_of_residence.toLocaleLowerCase() !==
-        body?.city.toLocaleLowerCase()
+      body?.city.toLocaleLowerCase()
     )
       throw new BadRequestException('Failed to verify address details');
 

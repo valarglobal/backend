@@ -24,7 +24,7 @@ export class AuthService {
     private readonly emailService: EmailService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   async register(body: RegisterDto | RegisterBusinessDto) {
     const otpCode = this.generateOtp(6);
@@ -127,7 +127,7 @@ export class AuthService {
           // send welcome email
           this.emailService.sendEmail({
             to: savedUser.email,
-            subject: 'Welcome to nattypay',
+            subject: 'Welcome to valarpay',
             template: 'auth/welcome-email.hbs',
             context: { firstName: savedUser.fullname.split(' ')[0] },
           });
@@ -215,7 +215,7 @@ export class AuthService {
         // send 2fa email
         this.emailService.sendEmail({
           to: user.email,
-          subject: 'Your Login Verification Code - NattyPay',
+          subject: 'Your Login Verification Code - Valarpay',
           template: 'auth/2fa-email.hbs',
           context: { firstName: user.fullname.split(' ')[0], otpCode },
         });
@@ -245,7 +245,7 @@ export class AuthService {
       try {
         this.emailService.sendEmail({
           to: user.email,
-          subject: 'New Login Detected on Your NattyPay Account',
+          subject: 'New Login Detected on Your Valarpay Account',
           template: 'auth/login-email.hbs',
           context: {
             fullname: user?.fullname,
@@ -383,7 +383,7 @@ export class AuthService {
       // send 2fa email
       this.emailService.sendEmail({
         to: user.email,
-        subject: 'Your Login Verification Code - NattyPay',
+        subject: 'Your Login Verification Code - Valarpay',
         template: 'auth/2fa-email.hbs',
         context: {
           firstName: user.fullname.split(' ')[0],
@@ -501,7 +501,7 @@ export class AuthService {
       try {
         this.emailService.sendEmail({
           to: user.email,
-          subject: 'New Login Detected on Your NattyPay Account',
+          subject: 'New Login Detected on Your Valarpay Account',
           template: 'auth/login-email.hbs',
           context: {
             fullname: user?.fullname,
@@ -582,7 +582,7 @@ export class AuthService {
       // send reset email
       this.emailService.sendEmail({
         to: user.email,
-        subject: 'Reset Your Password - NattyPay',
+        subject: 'Reset Your Password - Valarpay',
         template: 'auth/forgot-password-email.hbs',
         context: { otpCode: otpCode },
       });

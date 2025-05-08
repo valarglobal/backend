@@ -11,6 +11,7 @@ import { GraphService } from './providers/graph.service';
 import { TermiiService } from './providers/termii.service';
 import { AwsService } from './providers/aws.service';
 import { HelperService } from './providers/helper.service';
+import { SendarSmsService } from './providers/sendar.service';
 
 @Module({
   imports: [PrismaModule, EmailModule],
@@ -25,6 +26,7 @@ import { HelperService } from './providers/helper.service';
     TermiiService,
     AwsService,
     HelperService,
+    SendarSmsService
   ],
   exports: [
     ApiProviderService,
@@ -37,6 +39,7 @@ import { HelperService } from './providers/helper.service';
     TermiiService,
     AwsService,
     HelperService,
+    SendarSmsService
   ],
 })
-export class ApiProvidersModule {}
+export class ApiProvidersModule { }

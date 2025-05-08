@@ -22,6 +22,9 @@ async function bootstrap() {
       'https://natty-pay.vercel.app',
       'https://www.nattypay.com',
       'https://nattypay.com',
+      'https://www.valarpay.com',
+      'https://valar-pay.vercel.app',
+      'https://valarpay.com',
     ],
     credentials: true, // Allow cookies or authorization headers
   });

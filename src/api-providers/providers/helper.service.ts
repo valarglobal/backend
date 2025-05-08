@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DojahService } from './dojah.service';
 import { TermiiService } from './termii.service';
 import { AwsService } from './aws.service';
+import { SendarSmsService } from './sendar.service';
 
 @Injectable()
 export class HelperService {
@@ -9,12 +10,13 @@ export class HelperService {
     private readonly dojahService: DojahService,
     private readonly termiiService: TermiiService,
     private readonly awsService: AwsService,
-  ) {}
+    private readonly sendarService: SendarSmsService,
+  ) { }
 
   async sendSms(
     phoneNumber: string,
     message: string,
-    type: 'dojah' | 'termii' | 'aws',
+    type: 'dojah' | 'termii' | 'aws' | 'sendar',
     channel: 'sms' | 'whatsapp' = 'sms',
   ) {
     if (type === 'dojah') {
@@ -32,6 +34,14 @@ export class HelperService {
       return this.awsService.sendSms({
         phoneNumber: this.addCountryCode(phoneNumber),
         message,
+      });
+    } else if (type === 'sendar') {
+      return this.sendarService.sendSMS({
+        contact: [{
+          number: this.addCountryCode(phoneNumber),
+          body: message,
+          sms_type: 'plain',
+        }],
       });
     }
   }

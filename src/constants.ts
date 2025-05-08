@@ -1,5 +1,5 @@
-export const USER_CLOUDINARY_FOLDER_NAME = 'nattypay/profile_pictures';
-export const REPORT_SCAM_CLOUDINARY_FOLDER_NAME = 'nattypay/report_scams';
+export const USER_CLOUDINARY_FOLDER_NAME = 'valarpay/profile_pictures';
+export const REPORT_SCAM_CLOUDINARY_FOLDER_NAME = 'valarpay/report_scams';
 export const REFERRAL_BONUS_PRICE = 500;
 export const GIFT_CARD_FEE = 0;
 export const CABLE_FEE = 50;

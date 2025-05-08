@@ -1,33 +1,66 @@
 <html lang='en'>
-  <head>
-    <meta charset='UTF-8' />
-    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
-    <title>Message Received</title>
-    <style>
-      body { font-family: Arial, sans-serif; background-color: #f8f9fa; color:
-      #333; padding: 20px; } .header { background-color: #d4af37; color: #fff;
-      text-align: center; padding: 20px; } .content { background: #fff;
-      border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0,
-      0.1); } .footer { margin-top: 20px; text-align: center; color: #777; }
-      .button { display: inline-block; padding: 10px 20px; color: #fff;
-      background-color: #d4af37; text-decoration: none; border-radius: 5px;
-      margin-top: 10px; }
-    </style>
-  </head>
-  <body>
-    <div class='header'>
-      <h1>Thank You for Reaching Out!</h1>
-    </div>
-    <div class='content'>
-      <p>Dear {{firstName}},</p>
-      <p>We have received your message and our support team will get back to you
-        as soon as possible. Here's a summary of your message:</p>
-      <p><strong>Title:</strong> {{title}}</p>
-      <p><strong>Message:</strong></p>
-      <p>{{message}}</p>
-      <p>Thank you for contacting us!</p>
-      <p class='footer'>- The NattyPay Support Team</p>
-      <a href='{{supportUrl}}' class='button'>Visit Support Center</a>
-    </div>
-  </body>
+
+<head>
+  <meta charset='UTF-8' />
+  <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+  <title>Message Received</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f8f9fa;
+      color:
+        #333;
+      padding: 20px;
+    }
+
+    .header {
+      background-color: #d4af37;
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .content {
+      background: #fff;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0,
+          0.1);
+    }
+
+    .footer {
+      margin-top: 20px;
+      text-align: center;
+      color: #777;
+    }
+
+    .button {
+      display: inline-block;
+      padding: 10px 20px;
+      color: #fff;
+      background-color: #d4af37;
+      text-decoration: none;
+      border-radius: 5px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class='header'>
+    <h1>Thank You for Reaching Out!</h1>
+  </div>
+  <div class='content'>
+    <p>Dear {{firstName}},</p>
+    <p>We have received your message and our support team will get back to you
+      as soon as possible. Here's a summary of your message:</p>
+    <p><strong>Title:</strong> {{title}}</p>
+    <p><strong>Message:</strong></p>
+    <p>{{message}}</p>
+    <p>Thank you for contacting us!</p>
+    <p class='footer'>- The Valarpay Support Team</p>
+    <a href='{{supportUrl}}' class='button'>Visit Support Center</a>
+  </div>
+</body>
+
 </html>
