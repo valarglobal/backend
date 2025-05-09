@@ -26,7 +26,7 @@ export class SafeHavenService {
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
     private readonly helperService: HelperService,
-  ) {}
+  ) { }
 
   async getAccessToken(refreshToken?: string) {
     // // Check if we have a valid token that hasn't expired
@@ -84,10 +84,15 @@ export class SafeHavenService {
       const url =
         this.configService.get<string>('SAFEHAVEN_BASE_URL') + '/identity/v2';
 
+      console.log('url', url);
+
       let response: any;
+
+      console.log('body', { ...body, async: false });
+
       try {
         const token = await this.getAccessToken();
-        response = await axios.post(url, body, {
+        response = await axios.post(url, { ...body, async: false }, {
           headers: this.getHeaders(token?.accessToken, token?.ibsClientId),
         });
       } catch (error) {
@@ -191,7 +196,7 @@ export class SafeHavenService {
       const url =
         this.configService.get<string>('SAFEHAVEN_BASE_URL') +
         '/accounts/v2/subaccount';
-    } catch (error) {}
+    } catch (error) { }
   }
 
   async getAllBanks() {

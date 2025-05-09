@@ -70,4 +70,4 @@ export const AIRTEL_PREFIXES = [
 export const ETISALAT_PREFIXES = ['0809', '0909', '0817', '0818', '0908'];
 
 export const defaultBankCode = '090286';
-export const defaultBankName = 'Safe Haven Microfinance Bank';
+export const defaultBankName = 'Bell MFB';

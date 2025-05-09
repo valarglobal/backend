@@ -47,6 +47,12 @@ export class HelperService {
   }
 
   addCountryCode(phoneNumber: string) {
+    console.log('phoneNumber', phoneNumber);
+
+    // Check if the phone number already starts with '+234'
+    if (phoneNumber?.startsWith('234')) {
+      return "+" + phoneNumber;
+    }
     // Check if the phone number already starts with '+234'
     if (phoneNumber?.startsWith('+234')) {
       return phoneNumber;

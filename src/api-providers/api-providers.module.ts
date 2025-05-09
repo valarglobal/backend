@@ -12,6 +12,7 @@ import { TermiiService } from './providers/termii.service';
 import { AwsService } from './providers/aws.service';
 import { HelperService } from './providers/helper.service';
 import { SendarSmsService } from './providers/sendar.service';
+import { BellAccountService } from './providers/bellmfb.service';
 
 @Module({
   imports: [PrismaModule, EmailModule],
@@ -26,7 +27,8 @@ import { SendarSmsService } from './providers/sendar.service';
     TermiiService,
     AwsService,
     HelperService,
-    SendarSmsService
+    SendarSmsService,
+    BellAccountService
   ],
   exports: [
     ApiProviderService,
@@ -39,7 +41,8 @@ import { SendarSmsService } from './providers/sendar.service';
     TermiiService,
     AwsService,
     HelperService,
-    SendarSmsService
+    SendarSmsService,
+    BellAccountService
   ],
 })
 export class ApiProvidersModule { }

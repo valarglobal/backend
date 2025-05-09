@@ -19,6 +19,7 @@ import { defaultBankName } from 'src/constants';
 import { getAllISOCodes } from 'iso-country-currency';
 import { GraphService } from './providers/graph.service';
 import { HelperService } from './providers/helper.service';
+import { BellAccountService } from './providers/bellmfb.service';
 
 @Injectable()
 export class ApiProviderService {
@@ -31,6 +32,7 @@ export class ApiProviderService {
     private readonly graphService: GraphService,
     private readonly configService: ConfigService,
     private readonly helperService: HelperService,
+    private readonly bellAccountService: BellAccountService,
   ) { }
 
   async sendSms(
@@ -91,23 +93,34 @@ export class ApiProviderService {
 
     //safe haven bank
 
-    const res = await this.safeHavenService.createSubAccount(
-      {
-        phoneNumber: this.addCountryCode(user?.phoneNumber),
-        emailAddress: user?.email,
-        externalReference: user?.id,
-        bvn,
-        verificationId,
-        otpCode,
-        companyRegistrationNumber: user?.companyRegistrationNumber,
-      },
-      type ? type : 'personal',
-    );
+    // const res = await this.safeHavenService.createSubAccount(
+    //   {
+    //     phoneNumber: this.addCountryCode(user?.phoneNumber),
+    //     emailAddress: user?.email,
+    //     externalReference: user?.id,
+    //     bvn,
+    //     verificationId,
+    //     otpCode,
+    //     companyRegistrationNumber: user?.companyRegistrationNumber,
+    //   },
+    //   type ? type : 'personal',
+    // );
+
+    const res = await this.bellAccountService.createIndividualClient({
+      firstname: user?.fullname.split(' ')[0],
+      lastname: user?.fullname.split(' ')[1],
+      phoneNumber: this.addCountryCode(user?.phoneNumber),
+      address: user?.address,
+      bvn: Number(bvn),
+      gender: 'male',
+      dateOfBirth: user?.dateOfBirth,
+      emailAddress: user?.email,
+    })
 
     console.log('create account res', res);
     return {
-      account_name: res?.accountName,
-      account_number: res?.accountNumber,
+      account_name: res?.data?.accountName,
+      account_number: res?.data?.accountNumber,
       bank_name: defaultBankName,
     };
   }

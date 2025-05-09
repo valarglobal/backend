@@ -44,7 +44,7 @@ export class BellAccountService {
   SANDBOX_BASE_URL = 'https://sandbox-baas-api.bellmfb.com';
   PRODUCTION_BASE_URL = 'https://baas-api.bellmfb.com';
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) { }
 
   async getAccessToken() {
     const url = this.SANDBOX_BASE_URL + '/v1/generate-token';
@@ -102,7 +102,7 @@ export class BellAccountService {
       );
       throw new InternalServerErrorException(
         error.response?.data?.message ||
-          'Failed to create individual client account',
+        'Failed to create individual client account',
       );
     }
   }
