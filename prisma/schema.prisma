@@ -34,8 +34,7 @@ enum TRANSACTION_CATEGORY {
 enum TRANSACTION_TYPE {
   DEBIT
   CREDIT
-} 
-
+}
 
 enum TRANSACTION_STATUS {
   pending
@@ -55,7 +54,6 @@ enum USER_ACCOUNT_STATUS {
   restricted
   frozen
 }
-
 
 enum NETWORK {
   mtn
@@ -81,7 +79,6 @@ enum BILL_TYPE {
   giftcard
 }
 
-
 enum SCAM_TICKET_STATUS {
   opened
   closed
@@ -92,10 +89,9 @@ enum BENEFICIARY_TYPE {
   BILL
 }
 
-
 model User {
-  id   String @id @default(uuid()) @db.Uuid
-  email     String  @unique
+  id       String @id @default(uuid()) @db.Uuid
+  email    String @unique
   username String @unique
   fullname String
 
@@ -103,76 +99,78 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  currency CURRENCY @default(NGN)
-  businessName String?
-  isBusiness Boolean? @default(false)
+  currency                  CURRENCY @default(NGN)
+  businessName              String?
+  isBusiness                Boolean? @default(false)
   companyRegistrationNumber String?
 
-  otpToken  String?
-  tokenVersion Int @default(0)
+  otpToken     String?
+  tokenVersion Int     @default(0)
 
-  phoneNumber String?
-  isPasscodeSet Boolean @default(false)
-  passcode String?
+  phoneNumber     String?
+  isPasscodeSet   Boolean @default(false)
+  passcode        String?
   isPhoneVerified Boolean @default(false)
   isEmailVerified Boolean @default(false)
-  isBvnVerified Boolean @default(false)
-  bvn String?
+  isBvnVerified   Boolean @default(false)
+  bvn             String?
 
-  isNinVerified Boolean @default(false)
-  isAddressVerified Boolean @default(false)
-  nin String?
-  address String?
-  state String?
-  city String?
+  isNinVerified     Boolean      @default(false)
+  isAddressVerified Boolean      @default(false)
+  nin               String?
+  address           String?
+  state             String?
+  city              String?
   selfieBase64Image String?
-  accountType ACCOUNT_TYPE @default(PERSONAL)
+  accountType       ACCOUNT_TYPE @default(PERSONAL)
 
-  walletPin  String?
+  walletPin      String?
   isWalletPinSet Boolean @default(false)
 
   profileImageFilename String?
-  profileImageUrl String?
+  profileImageUrl      String?
 
   referralCode String?
-  referredBy String?
+  referredBy   String?
 
-  scamTicketCount Int @default(0)
-  dateOfBirth String?
+  scamTicketCount Int     @default(0)
+  dateOfBirth     String?
 
   enabledTwoFa Boolean @default(true)
-  
+
   status USER_ACCOUNT_STATUS @default(active)
 
-  role USER_ROLE @default(USER)
+  role                             USER_ROLE @default(USER)
   // transaction limit for user
-  dailyCummulativeTransactionLimit Float @default(0)
-  cummulativeBalanceLimit Float @default(0)
+  dailyCummulativeTransactionLimit Float     @default(0)
+  cummulativeBalanceLimit          Float     @default(0)
 
   // tier level
   tierLevel TIER_LEVEL @default(notSet)
 
   // relationships
-  wallet Wallet[]
+  wallet        Wallet[]
   beneficiaries Beneficiary[]
-  scamTicket  ScamTicket[]
+  scamTicket    ScamTicket[]
+
+  isBusinessRegistered Boolean @default(false)
 
   //table name
   @@map("users")
 }
 
 model Wallet {
-  id String @id @default(uuid()) @db.Uuid
-  userId String @unique @db.Uuid
-  balance Float @default(0)
+  id       String   @id @default(uuid()) @db.Uuid
+  userId   String   @unique @db.Uuid
+  balance  Float    @default(0)
   currency CURRENCY @default(NGN)
 
-  accountNumber String @unique
-  accountName String?
-  bankName String?
-  bankCode String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  accountNumber String   @unique
+  accountName   String?
+  bankName      String?
+  bankCode      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   accountRef String?
 
@@ -180,38 +178,35 @@ model Wallet {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   transactions Transaction[]
-  @@map("wallet")
+
   @@index([accountNumber])
+  @@map("wallet")
 }
 
-
 model Beneficiary {
-  id String @id @default(uuid()) @db.Uuid
+  id     String @id @default(uuid()) @db.Uuid
   userId String @db.Uuid
 
   type BENEFICIARY_TYPE
 
-// details for transfer
-  bankName String?
-  bankCode String?
+  // details for transfer
+  bankName      String?
+  bankCode      String?
   accountNumber String?
-  accountName String?
-
+  accountName   String?
 
   // details for bill payment
-  network NETWORK?
-  billType BILL_TYPE?
+  network      NETWORK?
+  billType     BILL_TYPE?
   billerNumber String?
-  operatorId Int?
-  billerCode String?
-  itemCode String?
-
+  operatorId   Int?
+  billerCode   String?
+  itemCode     String?
 
   currency CURRENCY? @default(NGN)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
 
   // relationships
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -220,42 +215,41 @@ model Beneficiary {
 }
 
 model Transaction {
-    id   String @id @default(uuid()) @db.Uuid
-    walletId String @db.Uuid
+  id       String @id @default(uuid()) @db.Uuid
+  walletId String @db.Uuid
 
-    transactionRef String?
-    type  TRANSACTION_TYPE
-    category TRANSACTION_CATEGORY @default(TRANSFER)
-    currency String
-    status  TRANSACTION_STATUS @default(pending)
-    description String?
-    previousBalance Float
-    currentBalance Float
-    
-    reference String?
+  transactionRef  String?
+  type            TRANSACTION_TYPE
+  category        TRANSACTION_CATEGORY @default(TRANSFER)
+  currency        String
+  status          TRANSACTION_STATUS   @default(pending)
+  description     String?
+  previousBalance Float
+  currentBalance  Float
 
-    billDetails Json?
-    transferDetails Json?
-    depositDetails Json?
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  reference String?
 
-    wallet  Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  billDetails     Json?
+  transferDetails Json?
+  depositDetails  Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-    @@map("transaction")
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@map("transaction")
 }
 
-
 model PaymentEvent {
-  id   String @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  refId String
-  status String
+  refId    String
+  status   String
   currency String?
 
-  amountPaid Float
+  amountPaid       Float
   settlementAmount Float?
-  fee Float
+  fee              Float
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -264,12 +258,12 @@ model PaymentEvent {
 }
 
 model AirtimePlan {
-  id   String @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  planName String?
-  network NETWORK?
+  planName       String?
+  network        NETWORK?
   countryISOCode String?
-  operatorId Int?
+  operatorId     Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -277,30 +271,28 @@ model AirtimePlan {
   @@map("airtimePlan")
 }
 
-
 model DataPlan {
-    id   String @id @default(uuid()) @db.Uuid
-    network NETWORK?
+  id      String   @id @default(uuid()) @db.Uuid
+  network NETWORK?
 
-    planName String?
-    countryISOCode String?
-    operatorId Int?
+  planName       String?
+  countryISOCode String?
+  operatorId     Int?
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-    @@map("dataPlan")
+  @@map("dataPlan")
 }
 
-
 model CablePlan {
-  id   String @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  planName String?
+  planName       String?
   countryISOCode String?
-  billerCode String?
-  description String?
-  shortName String?
+  billerCode     String?
+  description    String?
+  shortName      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -308,15 +300,14 @@ model CablePlan {
   @@map("cablePlan")
 }
 
-
 model ElectricityPlan {
-  id   String @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  planName String?
+  planName       String?
   countryISOCode String?
-  billerCode String?
-  description String?
-  shortName String?
+  billerCode     String?
+  description    String?
+  shortName      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -324,15 +315,14 @@ model ElectricityPlan {
   @@map("electricityPlan")
 }
 
-
 model InternetservicePlan {
-  id   String @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  planName String?
+  planName       String?
   countryISOCode String?
-  billerCode String?
-  description String?
-  shortName String?
+  billerCode     String?
+  description    String?
+  shortName      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -340,15 +330,14 @@ model InternetservicePlan {
   @@map("internetservicePlan")
 }
 
-
 model TransportPlan {
-  id   String @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  planName String?
+  planName       String?
   countryISOCode String?
-  billerCode String?
-  description String?
-  shortName String?
+  billerCode     String?
+  description    String?
+  shortName      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -356,15 +345,14 @@ model TransportPlan {
   @@map("transportPlan")
 }
 
-
 model SchoolfeePlan {
-  id   String @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  planName String?
+  planName       String?
   countryISOCode String?
-  billerCode String?
-  description String?
-  shortName String?
+  billerCode     String?
+  description    String?
+  shortName      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -373,20 +361,20 @@ model SchoolfeePlan {
 }
 
 model ScamTicket {
-      id   String @id @default(uuid()) @db.Uuid
-      userId String @db.Uuid
-      ref_number Int
-      title String
-      screenshotImageUrl String
-      status SCAM_TICKET_STATUS @default(opened)
-      description String?
+  id                 String             @id @default(uuid()) @db.Uuid
+  userId             String             @db.Uuid
+  ref_number         Int
+  title              String
+  screenshotImageUrl String
+  status             SCAM_TICKET_STATUS @default(opened)
+  description        String?
 
-      createdAt DateTime @default(now())
-      updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-      // relationships
-      user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-      @@map("scamTicket")
-      @@index([ref_number])
+  @@index([ref_number])
+  @@map("scamTicket")
 }

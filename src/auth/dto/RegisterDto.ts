@@ -1,5 +1,6 @@
 import { ACCOUNT_TYPE, CURRENCY } from '@prisma/client';
 import {
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsNotEmpty,
@@ -44,6 +45,15 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   referralCode?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsEnum(CURRENCY)
+  currency?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isBusinessRegistered?: boolean;
 
   @IsOptional()
   @IsEnum(ACCOUNT_TYPE)

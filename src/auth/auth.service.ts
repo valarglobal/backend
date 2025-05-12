@@ -24,7 +24,7 @@ export class AuthService {
     private readonly emailService: EmailService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   async register(body: RegisterDto | RegisterBusinessDto) {
     const otpCode = this.generateOtp(6);
@@ -58,7 +58,7 @@ export class AuthService {
           dateOfBirth: body.dateOfBirth,
           accountType: body.accountType,
           isBusiness: body.accountType === ACCOUNT_TYPE.BUSINESS ? true : false,
-          currency: body.countryCode ?? 'NGN',
+          currency: body.currency ?? 'NGN',
           companyRegistrationNumber:
             body.accountType === ACCOUNT_TYPE.BUSINESS
               ? (body as RegisterBusinessDto)?.companyRegistrationNumber
@@ -79,7 +79,7 @@ export class AuthService {
             throw new BadRequestException('Invalid referral code');
 
           const referredUserWallet = referredUser.wallet.find(
-            (wallet) => wallet.currency === body.countryCode,
+            (wallet) => wallet.currency === body.currency,
           );
 
           if (!referredUserWallet) {
