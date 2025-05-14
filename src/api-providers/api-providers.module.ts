@@ -13,6 +13,7 @@ import { AwsService } from './providers/aws.service';
 import { HelperService } from './providers/helper.service';
 import { SendarSmsService } from './providers/sendar.service';
 import { BellAccountService } from './providers/bellmfb.service';
+import { SmileIdService } from './providers/smile-id.service';
 
 @Module({
   imports: [PrismaModule, EmailModule],
@@ -28,7 +29,8 @@ import { BellAccountService } from './providers/bellmfb.service';
     AwsService,
     HelperService,
     SendarSmsService,
-    BellAccountService
+    BellAccountService,
+    SmileIdService,
   ],
   exports: [
     ApiProviderService,
@@ -42,7 +44,8 @@ import { BellAccountService } from './providers/bellmfb.service';
     AwsService,
     HelperService,
     SendarSmsService,
-    BellAccountService
+    BellAccountService,
+    SmileIdService,
   ],
 })
-export class ApiProvidersModule { }
+export class ApiProvidersModule {}

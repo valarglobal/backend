@@ -21,11 +21,12 @@ import {
 import { VerifyAccountDto } from './dto/VerifyAccountDto';
 import { InitiateBvnVerificationDto } from './dto/InitiateBvnVerificationDto';
 import { ValidateBvnVerificationDto } from './dto/ValidateBvnVerificationDto';
+import { SmileIdBasicKycPayload } from 'src/api-providers/providers/smile-id.service';
 import { DecodeQrCodeDto } from './dto/DecodeQrCodeDto';
 
 @Controller('v1/wallet')
 export class WalletController {
-  constructor(private readonly walletService: WalletService) {}
+  constructor(private readonly walletService: WalletService) { }
 
   @Get('get-banks/:currency')
   async getAllBanks(@Param('currency') currency: string) {
@@ -88,7 +89,11 @@ export class WalletController {
   }
 
   @Post('initiate-bvn-verification')
-  async initiateBvnVerification(@Body() body: InitiateBvnVerificationDto) {
+  async initiateBvnVerification(
+    @Body() body: InitiateBvnVerificationDto,
+    @Req() req: Request,
+  ) {
+    const user = req['user'];
     return this.walletService.initiateBvnVerification(body);
   }
 

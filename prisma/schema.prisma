@@ -18,6 +18,18 @@ enum ACCOUNT_TYPE {
   BUSINESS
 }
 
+enum GENDER {
+  M
+  F
+}
+
+enum COUNTRY {
+  NG
+  GH
+  ZA
+  US
+}
+
 enum CURRENCY {
   NGN
   USD
@@ -94,6 +106,10 @@ model User {
   email    String @unique
   username String @unique
   fullname String
+
+  gender GENDER?
+
+  country COUNTRY?
 
   password  String?
   createdAt DateTime @default(now())

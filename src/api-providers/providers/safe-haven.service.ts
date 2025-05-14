@@ -95,6 +95,10 @@ export class SafeHavenService {
         response = await axios.post(url, { ...body, async: false }, {
           headers: this.getHeaders(token?.accessToken, token?.ibsClientId),
         });
+
+        console.log('response', response?.data);
+
+
       } catch (error) {
         console.log('error verifying bvn', error);
         throw error;

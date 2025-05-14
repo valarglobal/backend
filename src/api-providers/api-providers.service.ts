@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { SafeHavenService } from './providers/safe-haven.service';
 import { CURRENCY, User } from '@prisma/client';
 import { DojahService } from './providers/dojah.service';
@@ -20,6 +20,7 @@ import { getAllISOCodes } from 'iso-country-currency';
 import { GraphService } from './providers/graph.service';
 import { HelperService } from './providers/helper.service';
 import { BellAccountService } from './providers/bellmfb.service';
+import { SmileIdService } from './providers/smile-id.service';
 
 @Injectable()
 export class ApiProviderService {
@@ -33,6 +34,7 @@ export class ApiProviderService {
     private readonly configService: ConfigService,
     private readonly helperService: HelperService,
     private readonly bellAccountService: BellAccountService,
+    private readonly smileIdService: SmileIdService,
   ) { }
 
   async sendSms(
@@ -106,23 +108,28 @@ export class ApiProviderService {
     //   type ? type : 'personal',
     // );
 
-    const res = await this.bellAccountService.createIndividualClient({
-      firstname: user?.fullname.split(' ')[0],
-      lastname: user?.fullname.split(' ')[1],
-      phoneNumber: this.addCountryCode(user?.phoneNumber),
-      address: user?.address,
-      bvn: Number(bvn),
-      gender: 'male',
-      dateOfBirth: user?.dateOfBirth,
-      emailAddress: user?.email,
-    })
+    try {
+      const res = await this.bellAccountService.createIndividualClient({
+        firstname: user?.fullname.split(' ')[0],
+        lastname: user?.fullname.split(' ')[1],
+        phoneNumber: this.addCountryCode(user?.phoneNumber),
+        address: user?.address,
+        bvn: String(bvn),
+        gender: 'male',
+        dateOfBirth: user?.dateOfBirth,
+        emailAddress: user?.email,
+      });
 
-    console.log('create account res', res);
-    return {
-      account_name: res?.data?.accountName,
-      account_number: res?.data?.accountNumber,
-      bank_name: defaultBankName,
-    };
+      console.log('create account res', res);
+      return {
+        account_name: res?.data?.accountName,
+        account_number: res?.data?.accountNumber,
+        bank_name: defaultBankName,
+      };
+    } catch (error) {
+      console.log('error', error);
+      throw new BadRequestException('Failed to create virtual account');
+    }
   }
 
   async initiateSafeHavenBvnVerification(body: InitiateBvnVerificationDto) {
@@ -415,5 +422,16 @@ export class ApiProviderService {
     );
 
     return countryCode?.iso || null;
+  }
+
+  async verifyBasicKyc(
+    userId: string,
+    payload: {
+      middle_name?: string;
+      bvn: string;
+      gender?: string;
+    },
+  ) {
+    return this.smileIdService.verifyBasicKyc(userId, { ...payload, id_type: "BVN" });
   }
 }

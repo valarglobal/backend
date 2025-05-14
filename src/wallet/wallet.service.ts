@@ -42,6 +42,7 @@ import { Jimp } from 'jimp';
 import jsQR from 'jsqr';
 import { EmailService } from 'src/email/email.service';
 import { getSMSAlertMessage } from 'src/utils';
+import { SmileIdBasicKycPayload } from 'src/api-providers/providers/smile-id.service';
 
 @Injectable()
 export class WalletService {
@@ -49,7 +50,7 @@ export class WalletService {
     private readonly prisma: PrismaService,
     private readonly apiProvider: ApiProviderService,
     private readonly emailService: EmailService,
-  ) {}
+  ) { }
 
   async getAllBanks(currency: string) {
     const banks: any = await this.apiProvider.getAllBanks(currency);
@@ -1439,6 +1440,14 @@ export class WalletService {
   }
 
   async initiateBvnVerification(body: InitiateBvnVerificationDto) {
+    // const response = await this.apiProvider.verifyBasicKyc(user.id, body);
+
+    // return {
+    //   message: 'Bvn verification initiated successfully',
+    //   statusCode: 200,
+    //   data: { verificationId: response?.data?._id, bvn: body.bvn },
+    // };
+
     const response =
       await this.apiProvider.initiateSafeHavenBvnVerification(body);
 

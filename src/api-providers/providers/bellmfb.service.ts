@@ -8,7 +8,7 @@ interface IndividualClientPayload {
   middlename?: string;
   phoneNumber: string;
   address: string;
-  bvn: number;
+  bvn: string;
   gender: 'male' | 'female';
   dateOfBirth: string; // format: YYYY/MM/DD (e.g., 1993/12/29)
   metadata?: Record<string, any>;
@@ -49,24 +49,31 @@ export class BellAccountService {
   async getAccessToken() {
     const url = this.SANDBOX_BASE_URL + '/v1/generate-token';
 
-    const payload = {
+    const headers = {
+      'Content-Type': 'application/json',
       consumerKey: this.configService.get<string>('BELL_CONSUMER_KEY'),
       consumerSecret: this.configService.get<string>('BELL_CONSUMER_SECRET'),
-      validityTime: this.configService.get<number>(
-        'BELL_CONSUMER_VALIDITY_TIME',
-      ),
+      validityTime: this.configService.get<number>('BELL_CONSUMER_VALIDITY_TIME'),
     };
 
-    const response = await axios.post(url, payload);
+    console.log('headers', headers);
+    try {
 
-    if (response?.status !== 200)
+      const response = await axios.post(url, {}, { headers });
+
+      if (response?.status !== 200)
+        throw new InternalServerErrorException('Failed to generate token');
+
+      const data = response?.data;
+      console.log('token data', data);
+
+      return {
+        accessToken: data?.token,
+      };
+    } catch (error) {
+      console.log('error', error);
       throw new InternalServerErrorException('Failed to generate token');
-
-    const data = response?.data;
-
-    return {
-      accessToken: data?.token,
-    };
+    }
   }
 
   private async getHeaders() {
@@ -83,6 +90,8 @@ export class BellAccountService {
   ): Promise<IndividualClientResponse> {
     const url = this.SANDBOX_BASE_URL + '/v1/account/clients/individual';
 
+    console.log('payload', payload);
+
     try {
       const response = await axios.post(url, payload, {
         headers: await this.getHeaders(),
@@ -98,7 +107,7 @@ export class BellAccountService {
     } catch (error) {
       console.error(
         'Error creating individual client account:',
-        error.response?.data || error.message,
+        error.response?.data || error?.message,
       );
       throw new InternalServerErrorException(
         error.response?.data?.message ||
