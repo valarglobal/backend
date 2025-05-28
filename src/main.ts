@@ -3,9 +3,22 @@ import { AppModule } from './app.module';
 import { resolve } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+
+  const config = new DocumentBuilder()
+  .setTitle('ValarPay API')
+  .setDescription('The ValarPay API documentation')
+  .setVersion('1.0')
+  .addBearerAuth()
+  .addServer('http://localhost:3000', 'Local environment')
+  .build();
+const document = SwaggerModule.createDocument(app, config);
+SwaggerModule.setup('api/docs', app, document);
+
 
   app.useStaticAssets(resolve('./src/public'));
   app.setBaseViewsDir(resolve('./src/templates'));
