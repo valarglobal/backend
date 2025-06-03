@@ -12,9 +12,9 @@ import { Roles } from 'src/guards/roles.decorator';
 import { AddPlanDto } from './dto/AddDataPlanDto';
 import { AdminService } from './admin.service';
 import { AddCablPlanDto } from './dto/AddCablPlanDto';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody } from '@nestjs/swagger';
 
-
+@ApiTags('Admin')
 @ApiBearerAuth()
 @Controller('/v1/admin')
 @Roles(USER_ROLE.ADMIN)
@@ -26,6 +26,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Add a new data plan' })
   @ApiResponse({ status: 200, description: 'Data plan added successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiBody({type: AddPlanDto})
   @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   async addDataPlan(@Body() body: AddPlanDto) {
     return this.adminService.addDataPlan(body);
@@ -36,6 +37,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Add a new airtime plan' })
   @ApiResponse({ status: 200, description: 'Airtime plan added successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiBody({type: AddPlanDto})
   @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   async addAirtimePlan(@Body() body: AddPlanDto) {
     return this.adminService.addAirtimePlan(body);
@@ -44,6 +46,7 @@ export class AdminController {
   @Post('cable/add-plan')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Add a new cable TV plan' })
+  @ApiBody({type: AddCablPlanDto})
   @ApiResponse({ status: 200, description: 'Cable plan added successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
@@ -54,6 +57,7 @@ export class AdminController {
   @Post('electricity/add-plan')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Add a new electricity plan' })
+  @ApiBody({type: AddCablPlanDto})
   @ApiResponse({ status: 200, description: 'Electricity plan added successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
@@ -64,6 +68,7 @@ export class AdminController {
   @Post('internet/add-plan')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Add a new internet service plan' })
+  @ApiBody({type: AddCablPlanDto})
   @ApiResponse({ status: 200, description: 'Internet plan added successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
@@ -74,6 +79,7 @@ export class AdminController {
   @Post('transport/add-plan')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Add a new transport plan' })
+  @ApiBody({type: AddCablPlanDto})
   @ApiResponse({ status: 200, description: 'Transport plan added successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
@@ -83,6 +89,7 @@ export class AdminController {
 
   @Post('schoolfee/add-plan')
   @HttpCode(HttpStatus.OK)
+  @ApiBody({type: AddCablPlanDto})
   @ApiOperation({ summary: 'Add a new school fee plan' })
   @ApiResponse({ status: 200, description: 'School fee plan added successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
