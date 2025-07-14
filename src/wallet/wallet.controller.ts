@@ -28,10 +28,13 @@ import { DecodeQrCodeDto } from './dto/DecodeQrCodeDto';
 export class WalletController {
   constructor(private readonly walletService: WalletService) { }
 
-  @Get('get-banks/:currency')
+  @Get('get-banks')
   async getAllBanks(@Param('currency') currency: string) {
-    return this.walletService.getAllBanks(currency);
+    return this.walletService.getAllBanks();
   }
+
+
+  
 
   @Get('get-transfer-fee')
   async getTransferDetails(
@@ -74,7 +77,7 @@ export class WalletController {
   @HttpCode(HttpStatus.OK)
   async initiateTransfer(@Body() body: TransferDto, @Req() req: Request) {
     const user = req['user'];
-    return this.walletService.transferSafeHavenFund(body, user);
+    return this.walletService.transferBellBankFund(body, user);
   }
 
   @Get('generate-qrcode')
@@ -94,7 +97,7 @@ export class WalletController {
     @Req() req: Request,
   ) {
     const user = req['user'];
-    return this.walletService.initiateBvnVerification(body);
+    return this.walletService.initiateBvnVerification(body,user);
   }
 
   @Post('validate-bvn-verification')

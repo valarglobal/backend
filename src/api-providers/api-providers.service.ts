@@ -109,23 +109,50 @@ export class ApiProviderService {
     // );
 
     try {
-      const res = await this.bellAccountService.createIndividualClient({
-        firstname: user?.fullname.split(' ')[0],
-        lastname: user?.fullname.split(' ')[1],
-        phoneNumber: this.addCountryCode(user?.phoneNumber),
-        address: user?.address,
-        bvn: String(bvn),
-        gender: 'male',
-        dateOfBirth: user?.dateOfBirth,
-        emailAddress: user?.email,
-      });
 
-      console.log('create account res', res);
-      return {
-        account_name: res?.data?.accountName,
-        account_number: res?.data?.accountNumber,
-        bank_name: defaultBankName,
-      };
+      if (type === 'business') {
+
+
+        const res = await this.bellAccountService.createCoporateClient({
+          businessName:user.fullname,
+          rcNumber: user?.companyRegistrationNumber,
+          phoneNumber: this.addCountryCode(user?.phoneNumber),
+          address: user?.address,
+          bvn: String(bvn),
+      incoporationDate: user?.dateOfBirth,
+          emailAddress: user?.email,
+        });
+  
+        console.log('create account res', res);
+        return {
+          account_name: res?.data?.accountName,
+          account_number: res?.data?.accountNumber,
+          bank_name: defaultBankName,
+        };
+
+      } else{
+
+        const res = await this.bellAccountService.createIndividualClient({
+          firstname: user?.fullname.split(' ')[0],
+          lastname: user?.fullname.split(' ')[1],
+          phoneNumber: this.addCountryCode(user?.phoneNumber),
+          address: user?.address,
+          bvn: String(bvn),
+          gender: 'male',
+          dateOfBirth: user?.dateOfBirth,
+          emailAddress: user?.email,
+        });
+  
+        console.log('create account res', res);
+        return {
+          account_name: res?.data?.accountName,
+          account_number: res?.data?.accountNumber,
+          bank_name: defaultBankName,
+        };
+
+      }
+
+   
     } catch (error) {
       console.log('error', error);
       throw new BadRequestException('Failed to create virtual account');
@@ -228,7 +255,7 @@ export class ApiProviderService {
     return this.dojahService.validateBvn(bvn);
   }
 
-  async verifyAccount(accountNumber: string, accountBank: string) {
+  async verifyAccount(accountNumber: string,bankCode: string,  internal:boolean) {
     //flutterwave
     // return this.flutterwaveService.verifyAccount({
     //   account_number: accountNumber,
@@ -236,7 +263,15 @@ export class ApiProviderService {
     // });
 
     // safe haven
-    return this.safeHavenService.getNameEquiry(accountBank, accountNumber);
+
+    console.log('internal', internal);
+
+    console.log('accountNumber', accountNumber);
+
+    if(internal) {
+      return this.bellAccountService.getNameEquiryInternal(accountNumber);
+    } 
+    return this.bellAccountService.getNameEquiry(bankCode, accountNumber);
   }
 
   async verifyNinWithSelfie(nin: string, selfieBase64: string) {
@@ -254,20 +289,27 @@ export class ApiProviderService {
     return this.dojahService.bvnLookUp(bvn);
   }
 
-  async getAllBanks(currency: string) {
-    const country = this.getCountryCodeFromCurrency(currency);
+  async getAllBanks() {
+    // const country = this.getCountryCodeFromCurrency(currency);
     // flutterwave
     // return this.flutterwaveService.getAllBanks(country);
 
     // safe haven
-    if (country == 'NG') {
-      return this.safeHavenService.getAllBanks();
-    }
+  
+      return this.bellAccountService.getAllBanks();
+    
   }
 
-  async getNameEquiry(bankCode: string, accountNumber: string) {
-    return this.safeHavenService.getNameEquiry(bankCode, accountNumber);
+  async getNameEquiry(bankCode: string, accountNumber: string, internal:boolean) {
+
+    if(internal) {
+      return this.bellAccountService.getNameEquiryInternal(accountNumber);
+    } 
+    return this.bellAccountService.getNameEquiry(bankCode, accountNumber);
   }
+
+
+
 
   async transferFund(body: TransferDto) {
     return this.flutterwaveService.initiateTransfer({
@@ -313,6 +355,25 @@ export class ApiProviderService {
       debitAccountInfo: {
         debitAccountNumber,
       },
+    });
+  }
+
+
+
+  async transferBellBankFund(
+    body: TransferDto,
+  senderName?: string,
+    trx_ref?: string,
+  ) {
+    return this.bellAccountService.transerFund({
+
+      beneficiaryBankCode: body?.bankCode,
+      beneficiaryAccountNumber: body?.accountNumber,
+      amount: body?.amount,
+      narration: body?.description,
+      reference: trx_ref,
+ senderName
+    
     });
   }
 

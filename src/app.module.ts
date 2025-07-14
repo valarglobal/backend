@@ -100,6 +100,8 @@ export class AppModule implements NestModule {
       .apply(JwtMiddleware)
       .exclude(
         { path: 'v1/auth/register', method: RequestMethod.POST },
+        { path: 'v1/auth/register-business', method: RequestMethod.POST },
+        { path: 'v1/admin/airtime/add-plan', method: RequestMethod.POST },
         { path: 'v1/auth/login', method: RequestMethod.POST },
         { path: 'v1/auth/verify-email', method: RequestMethod.POST },
         { path: 'v1/auth/resend-verify-email', method: RequestMethod.POST },

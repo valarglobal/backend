@@ -380,6 +380,49 @@ export class UserService {
     };
   }
 
+
+  async verifyBasicKyc(
+    userId: string,
+    payload: {
+      middle_name?: string;
+      bvn: string;
+      gender?: string;
+    },
+  ) {
+    try {
+      const response = await this.apiProvider.verifyBasicKyc(userId, payload);
+      
+      // You can add additional logic here based on the verification response
+      if (!response?.success) {
+        throw new BadRequestException('KYC verification failed');
+      }
+
+      await this.prisma.user.update({
+        where: {
+          id: userId,
+        },
+        data: {
+          bvn:payload.bvn,
+          isBvnVerified: true,
+        },
+      });
+  
+      return {
+        message: 'Nin verified successfully',
+        statusCode: HttpStatus.OK,
+      };
+
+      return {
+        message: 'Basic KYC verification successful',
+        data: response
+      };
+    } catch (error) {
+      throw new BadRequestException(
+        error?.message || 'Failed to verify basic KYC'
+      );
+    }
+  }
+
   async changePin(body: ChangePinDto, user: User) {
     const isValidPin = await bcrypt.compare(body.oldPin, user.walletPin);
     if (!isValidPin) {
@@ -919,8 +962,10 @@ export class UserService {
         body.phoneNumber,
         otpMessage,
         'termii',
-        'whatsapp',
+        'sms',
       );
+
+      console.log(res)
     } catch (error) {
       console.log('error sending sms', error);
       throw error;
@@ -1026,29 +1071,18 @@ export class UserService {
   }
 
   async verifyTier3Kyc(body: KycTier3Dto, user: User) {
-    let res: any;
-    try {
-      res = await this.apiProvider.dojahTier3Upgrade(body, user);
-    } catch (error) {
-      console.log('error upgrading to tier3', error);
-      if (error?.response?.status === 400)
-        throw new BadRequestException(error?.response?.data?.error);
-      throw error;
+
+    // Validate the input data  
+    if (!body?.address || !body?.city || !body?.state) {
+      throw new BadRequestException('Address, city, and state are required');
+    }
+    // Check if the user is already at tier 3
+  
+    // Check if the user has already verified their address     
+    if (user?.isAddressVerified) {
+      throw new BadRequestException('Address has already been verified');
     }
 
-    console.log('response value from tier3 upgrade', res);
-
-    if (
-      res?.entity?.state_of_residence.toLocaleLowerCase() !==
-      body?.state.toLocaleLowerCase() ||
-      res?.entity?.residential_address.toLocaleLowerCase() !==
-      body?.address.toLocaleLowerCase() ||
-      res?.entity?.lga_of_residence.toLocaleLowerCase() !==
-      body?.city.toLocaleLowerCase()
-    )
-      throw new BadRequestException('Failed to verify address details');
-
-    // update the user and kyc level to tier 3
     await this.prisma.user.update({
       where: {
         id: user?.id,
@@ -1057,16 +1091,17 @@ export class UserService {
         address: body?.address,
         state: body?.state,
         city: body?.city,
+        country: "NG",
         isAddressVerified: true,
-        tierLevel: TIER_LEVEL.three,
-        dailyCummulativeTransactionLimit:
-          TIER_THREE_DAILY_CUMMULATIVE_TRANSACTION_LIMIT,
-        cummulativeBalanceLimit: TIER_THREE_CUMMULATIVE_BALANCE_LIMIT,
+        // tierLevel: TIER_LEVEL.three,
+        // dailyCummulativeTransactionLimit:
+        //   TIER_THREE_DAILY_CUMMULATIVE_TRANSACTION_LIMIT,
+        // cummulativeBalanceLimit: TIER_THREE_CUMMULATIVE_BALANCE_LIMIT,
       },
     });
 
     return {
-      message: 'Tier3 kyc verification successful',
+      message: 'Address kyc verification successful',
       statusCode: HttpStatus.OK,
     };
   }

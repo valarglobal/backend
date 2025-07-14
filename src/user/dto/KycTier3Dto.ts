@@ -5,6 +5,8 @@ export class KycTier3Dto {
   @IsString()
   city: string;
 
+
+
   @IsNotEmpty()
   @IsString()
   state: string;

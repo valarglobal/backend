@@ -35,6 +35,7 @@ SwaggerModule.setup('api/docs', app, document);
       'http://localhost:3001',
       'https://natty-pay.vercel.app',
       'https://www.nattypay.com',
+      
       'https://nattypay.com',
       'https://www.valarpay.com',
       'https://valar-pay.vercel.app',

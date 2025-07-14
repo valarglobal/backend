@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBase64, IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import internal from 'stream';
 
 export class VerifyAccountDto {
   @IsNotEmpty()
@@ -8,4 +9,10 @@ export class VerifyAccountDto {
   @IsOptional()
   @IsString()
   bankCode: string;
+
+  @IsNotEmpty()
+  @IsBoolean()
+  internal: boolean;
+
+
 }

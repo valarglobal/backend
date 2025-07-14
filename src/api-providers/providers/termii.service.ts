@@ -13,7 +13,7 @@ export class TermiiService {
     const payload = {
       api_key: this.configService.get<string>('TERMII_API_KEY'),
       to: data.phoneNumber,
-      from: 'NattyPay',
+      from: 'N-Alert',
       channel: 'dnd',
       sms: data.message,
     };

@@ -16,6 +16,7 @@ import { PasscodeLoginDto } from './dto/PasscodeLoginDto';
 import { ResetPasswordDto } from './dto/ResetPasswordDto';
 import { RegisterBusinessDto } from './dto/RegisterBusinessDto';
 import { REFERRAL_BONUS_PRICE } from 'src/constants';
+import { WalletEntity } from 'src/wallet/serializer/wallet.serializer';
 
 @Injectable()
 export class AuthService {
@@ -160,6 +161,9 @@ export class AuthService {
       where: {
         OR: [{ email: body.email }, { username: body.email }],
       },
+      include:{
+        wallet: true,
+      }
     });
 
     if (!user) {
@@ -403,7 +407,12 @@ export class AuthService {
   async verifyTwoFaCode(body: VerifyEmailDto) {
     const user = await this.prisma.user.findFirst({
       where: { email: body.email },
-    });
+      include:{
+        wallet: true,
+      }
+    }
+    
+  );
 
     if (!user) {
       throw new BadRequestException('User with email does not exist');
@@ -442,7 +451,7 @@ export class AuthService {
     return {
       message: '2FA verified successfully',
       statusCode: HttpStatus.OK,
-      user: plainToInstance(UserEntity, user),
+      user: plainToInstance(UserEntity, user, ),
       accessToken,
     };
   }

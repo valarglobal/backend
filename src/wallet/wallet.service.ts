@@ -52,8 +52,8 @@ export class WalletService {
     private readonly emailService: EmailService,
   ) { }
 
-  async getAllBanks(currency: string) {
-    const banks: any = await this.apiProvider.getAllBanks(currency);
+  async getAllBanks() {
+    const banks: any = await this.apiProvider.getAllBanks();
 
     return {
       message: 'Banks retrieve successfully',
@@ -62,6 +62,7 @@ export class WalletService {
     };
   }
 
+
   async getTransactions(
     page: number,
     limit: number,
@@ -69,9 +70,29 @@ export class WalletService {
     category: TRANSACTION_CATEGORY,
     status: TRANSACTION_STATUS,
     search: string,
-    user: User & { wallet?: any },
+    user: User & { wallet?: Wallet[] }, // Note: wallet is an array
   ) {
     let response: any;
+
+    
+    if (!user?.wallet?.length) {
+      throw new NotFoundException('No wallets found for this user');
+    }
+    
+    // Get all wallet IDs for the user
+    const userWalletIds = user.wallet.map(w => w.id);
+    
+    // Build where clause with required walletId and optional filters
+    const whereClause: Prisma.TransactionWhereInput = {
+      walletId: {
+        in: userWalletIds // Use IN operator to match any of user's wallet IDs
+      },
+      ...(type && { type }),
+      ...(category && { category }),
+      ...(status && { status }),
+      ...(search && { transactionRef: { contains: search } }),
+    };
+
     if (page && limit) {
       const skip = (page - 1) * limit;
 
@@ -79,23 +100,14 @@ export class WalletService {
         this.prisma.transaction.findMany({
           skip,
           take: Number(limit),
-          where: {
-            walletId: user?.wallet?.id,
-            type,
-            category,
-            status,
-            transactionRef: search,
-          },
+          where: whereClause,
           orderBy: { createdAt: 'desc' },
+          include: {
+            wallet: true // Include wallet details if needed
+          }
         }),
         this.prisma.transaction.count({
-          where: {
-            walletId: user?.wallet?.id,
-            type,
-            category,
-            status,
-            transactionRef: search,
-          },
+          where: whereClause,
         }),
       ]);
 
@@ -103,15 +115,16 @@ export class WalletService {
         transactions,
         totalCount,
         totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+        itemsPerPage: limit
       };
     } else {
       const transactions = await this.prisma.transaction.findMany({
-        where: {
-          walletId: user?.wallet?.id,
-          type,
-          category,
-        },
+        where: whereClause,
         orderBy: { createdAt: 'desc' },
+        include: {
+          wallet: true // Include wallet details if needed
+        }
       });
 
       response = {
@@ -119,12 +132,81 @@ export class WalletService {
       };
     }
 
+    console.log('response', response);
+
     return {
-      message: 'Transactions retrieve successfully',
+      message: 'Transactions retrieved successfully',
       statusCode: HttpStatus.OK,
       ...response,
     };
   }
+
+
+  // async getTransactions(
+  //   page: number,
+  //   limit: number,
+  //   type: TRANSACTION_TYPE,
+  //   category: TRANSACTION_CATEGORY,
+  //   status: TRANSACTION_STATUS,
+  //   search: string,
+  //   user: User & { wallet?: Wallet[] },
+  // ) {
+  //   let response: any;
+  //   if (page && limit) {
+  //     const skip = (page - 1) * limit;
+
+  //     console.log(user, type, category, status, search);
+
+  //     const [transactions, totalCount] = await Promise.all([
+  //       this.prisma.transaction.findMany({
+  //         skip,
+  //         take: Number(limit),
+  //         where: {
+  //           walletId: user?.wallet?.id,
+  //           type,
+  //           category,
+  //           status,
+  //           transactionRef: search,
+  //         },
+  //         orderBy: { createdAt: 'desc' },
+  //       }),
+  //       this.prisma.transaction.count({
+  //         where: {
+  //           walletId: user?.wallet?.id,
+  //           type,
+  //           category,
+  //           status,
+  //           transactionRef: search,
+  //         },
+  //       }),
+  //     ]);
+
+  //     response = {
+  //       transactions,
+  //       totalCount,
+  //       totalPages: Math.ceil(totalCount / limit),
+  //     };
+  //   } else {
+  //     const transactions = await this.prisma.transaction.findMany({
+  //       where: {
+  //         walletId: user?.wallet?.id,
+  //         type,
+  //         category,
+  //       },
+  //       orderBy: { createdAt: 'desc' },
+  //     });
+
+  //     response = {
+  //       transactions,
+  //     };
+  //   }
+
+  //   return {
+  //     message: 'Transactions retrieve successfully',
+  //     statusCode: HttpStatus.OK,
+  //     ...response,
+  //   };
+  // }
 
   async fetchTransferFee(
     currency: string,
@@ -570,7 +652,7 @@ export class WalletService {
     };
   }
 
-  async safeHavenIntraTransfer(
+  async bellBankIntraTransfer(
     fromWallet: Wallet,
     toWallet: Wallet,
     amountPaid: number,
@@ -883,7 +965,7 @@ export class WalletService {
     throw new InternalServerErrorException('Transfer processing failed');
   }
 
-  async safeHavenInterTransfer(
+  async bellBankInterTransfer(
     fromWallet: Wallet,
     amountPaid: number,
     body: TransferDto,
@@ -928,6 +1010,7 @@ export class WalletService {
               type: TRANSACTION_TYPE.DEBIT,
               currency: body.currency,
               status: TRANSACTION_STATUS.pending,
+    
               description: body.description,
               previousBalance: fromWallet?.balance,
               currentBalance: fromWalletNewBalance,
@@ -935,8 +1018,8 @@ export class WalletService {
                 senderName: fromWallet?.accountName,
                 senderAccountNumber: fromWallet?.accountNumber,
                 senderBankName: fromWallet?.bankName,
-                beneficiaryName: transferData?.creditAccountName,
-                beneficiaryAccountNumber: transferData?.creditAccountNumber,
+                beneficiaryName: transferData?.destinationAccountName,
+                beneficiaryAccountNumber: transferData?.destinationAccountNumber,
                 beneficiaryBankName,
                 amount: body.amount,
                 amountPaid,
@@ -961,13 +1044,13 @@ export class WalletService {
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
-        const res = await this.apiProvider.transferSafeHavenFund(
+        const res = await this.apiProvider.transferBellBankFund(
           { ...body, amount: amountPaid },
-          fromWallet.accountNumber,
+          user.wallet.accountName,
           trxRef,
         );
 
-        if (res?.statusCode !== 200) {
+        if (res?.success === false) {
           throw new InternalServerErrorException('Transfer processing failed');
         }
 
@@ -991,7 +1074,7 @@ export class WalletService {
                 bankCode: body?.bankCode,
                 accountNumber: body?.accountNumber,
                 bankName: beneficiaryBankName,
-                accountName: transferData?.creditAccountName,
+                accountName: transferData?.destinationAccountName,
               },
             });
           }
@@ -1008,19 +1091,19 @@ export class WalletService {
               senderName: fromWallet?.accountName,
               senderAccountNumber: fromWallet?.accountNumber,
               senderBankName: fromWallet?.bankName,
-              beneficiaryName: transferData?.creditAccountName,
-              beneficiaryAccountNumber: transferData?.creditAccountNumber,
+              beneficiaryName: transferData?.destinationAccountName,
+              beneficiaryAccountNumber: transferData?.destinationAccountNumber,
               beneficiaryBankName,
               amount: body.amount,
               amountPaid,
-              fee,
+              fee:transferData?.charge,
             },
           },
         });
 
         try {
           //send debit alert email
-          const RAccountNumber = transferData?.creditAccountNumber;
+          const RAccountNumber = transferData?.destinationAccountNumber;
           const SAccountNumber = fromWallet.accountNumber;
           const maskedRAccountNumber = `${RAccountNumber.substring(0, 2)}xxx..${RAccountNumber.substring(RAccountNumber.length - 4, RAccountNumber.length - 1)}x`;
           const maskedSAccountNumber = `${SAccountNumber.substring(0, 2)}xxx..${SAccountNumber.substring(SAccountNumber.length - 4, SAccountNumber.length - 1)}x`;
@@ -1040,6 +1123,7 @@ export class WalletService {
             hour12: true,
             timeZone: 'Africa/Lagos',
           });
+          console.log("from wallet" ,fromWallet.accountName)
 
           this.emailService.sendEmail({
             to: user.email,
@@ -1048,16 +1132,21 @@ export class WalletService {
             context: {
               amount,
               accountName: fromWallet.accountName
-                .split('/')[1]
-                .split(' ')
-                .map(
-                  (word) =>
-                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
-                )
-                .join(' '),
+  .split(' - ')[1] 
+  .split(' ')      
+  .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()) 
+  .join(' '),
+              // accountName: fromWallet.accountName
+              //   .split('/')[1]
+              //   .split(' ')
+              //   .map(
+              //     (word) =>
+              //       word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+              //   )
+              //   .join(' '),
               accountNumber: maskedRAccountNumber,
               dateAndTime: formattedDate,
-              receipientName: transferData?.creditAccountName,
+              receipientName: transferData?.destinationAccountName,
               narration: body.description || '',
               reference: trxRef,
               availableBalance: new Intl.NumberFormat('en-US', {
@@ -1073,7 +1162,7 @@ export class WalletService {
             user.phoneNumber,
             getSMSAlertMessage(
               amount,
-              transferData?.creditAccountName,
+              transferData?.destinationAccountName,
               fromWallet?.accountName,
               trxRef,
               formattedDate,
@@ -1151,12 +1240,14 @@ export class WalletService {
     throw new InternalServerErrorException('Transfer processing failed');
   }
 
-  async transferSafeHavenFund(
+  async transferBellBankFund(
     body: TransferDto,
     user: User & { wallet?: Wallet },
   ) {
     if (!user?.isWalletPinSet)
       throw new BadRequestException('Wallet pin not set');
+
+    console.log(user?.walletPin, body?.walletPin);
 
     const isMatched = await bcrypt.compare(body?.walletPin, user?.walletPin);
 
@@ -1221,7 +1312,7 @@ export class WalletService {
 
     const totalAmount = totalDebitTransferAmount[0]?.total || 0;
 
-    console.log('totalAmount of transaction', totalAmount);
+    // console.log('totalAmount of transaction', totalAmount);
 
     if (totalAmount > user?.dailyCummulativeTransactionLimit)
       throw new BadRequestException(
@@ -1242,7 +1333,7 @@ export class WalletService {
     const amountPaid = body.amount + fee;
 
     if (toWallet) {
-      return await this.safeHavenIntraTransfer(
+      return await this.bellBankIntraTransfer(
         fromWallet,
         toWallet,
         amountPaid,
@@ -1253,7 +1344,7 @@ export class WalletService {
       );
     }
 
-    return await this.safeHavenInterTransfer(
+    return await this.bellBankInterTransfer(
       fromWallet,
       amountPaid,
       body,
@@ -1269,7 +1360,8 @@ export class WalletService {
     try {
       data = await this.apiProvider.verifyAccount(
         body.accountNumber,
-        body.bankCode ?? defaultBankCode,
+        body.bankCode ,
+        body.internal
       );
     } catch (error) {
       if (error?.response?.status === 400)
@@ -1297,6 +1389,7 @@ export class WalletService {
       data = await this.apiProvider.verifyAccount(
         wallet?.accountNumber,
         defaultBankCode,
+        false
       );
     } catch (error) {
       console.log('error verifying account number', error);
@@ -1439,23 +1532,83 @@ export class WalletService {
     return `${prefix}${uniqueId}`;
   }
 
-  async initiateBvnVerification(body: InitiateBvnVerificationDto) {
-    // const response = await this.apiProvider.verifyBasicKyc(user.id, body);
+  async initiateBvnVerification(body: InitiateBvnVerificationDto, user: User) {
+let bvnVerificationRes: any ;
+    try {
+      bvnVerificationRes = await this.apiProvider.verifyBasicKyc(user.id, body);
+      
+    } catch (error) {
+      throw new BadRequestException('Failed to validate BVN');
+    }
+
+    console.log('bvnVerificationRes', bvnVerificationRes.ResultText);
+
+    const validResults = ["Partial Match", "Exact Match"];
+if (!validResults.includes(bvnVerificationRes?.ResultText)) {
+  throw new BadRequestException('Failed to validate BVN');
+}
+
+let newWallet: any;
+
+    let res: any;
+    try {
+      res = await this.apiProvider.createVirtualAccount(
+        body.bvn,
+        {
+          ...user,
+          phoneNumber:
+           user.phoneNumber
+        },
+      
+        user?.isBusiness ? 'business' : 'personal',
+      );
+    } catch (error) {
+      throw new BadRequestException('Failed to validate BVN');
+    }
+
+    // update the user
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isBvnVerified: true,
+        bvn: body.bvn,
+        tierLevel: TIER_LEVEL.one,
+        dailyCummulativeTransactionLimit: user.isBusiness
+          ? BUSINESS_TIER_ONE_DAILY_CUMMULATIVE_TRANSACTION_LIMIT
+          : TIER_ONE_DAILY_CUMMULATIVE_TRANSACTION_LIMIT,
+        cummulativeBalanceLimit: user.isBusiness
+          ? BUSINESS_TIER_ONE_CUMMULATIVE_BALANCE_LIMIT
+          : TIER_ONE_CUMMULATIVE_BALANCE_LIMIT,
+      },
+    });
+
+    // create new wallet
+    newWallet = await this.prisma.wallet.create({
+      data: {
+        userId: user.id,
+        accountName: res?.account_name,
+        bankName: res?.bank_name,
+        accountNumber: res?.account_number,
+        accountRef: res?.order_ref,
+      },
+    });
+
+    return {
+      message: 'Wallet created succesfully',
+      statusCode: 201,
+      data: newWallet,
+    };
+  
+
+
+    // const response =
+    //   await this.apiProvider.initiateSafeHavenBvnVerification(body);
 
     // return {
     //   message: 'Bvn verification initiated successfully',
     //   statusCode: 200,
     //   data: { verificationId: response?.data?._id, bvn: body.bvn },
     // };
-
-    const response =
-      await this.apiProvider.initiateSafeHavenBvnVerification(body);
-
-    return {
-      message: 'Bvn verification initiated successfully',
-      statusCode: 200,
-      data: { verificationId: response?.data?._id, bvn: body.bvn },
-    };
   }
 
   async validateBvnVerification(body: ValidateBvnVerificationDto, user: User) {
