@@ -1535,6 +1535,8 @@ export class WalletService {
   async initiateBvnVerification(body: InitiateBvnVerificationDto, user: User) {
 let bvnVerificationRes: any ;
     try {
+
+      
       bvnVerificationRes = await this.apiProvider.verifyBasicKyc(user.id, body);
       
     } catch (error) {

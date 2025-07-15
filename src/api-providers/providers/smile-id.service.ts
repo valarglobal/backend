@@ -6,6 +6,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 
 export interface SmileIdBasicKycPayload {
   middle_name?: string;
+  fullname?: string; 
   bvn: string;
   id_type: string;
   gender?: string;
@@ -98,6 +99,9 @@ let signature = hmac.digest().toString("base64");
       const baseUrl = 'https://api.smileidentity.com/v2/verify';
 
       
+      const fullnameToUse = user.isBusiness && payload.fullname 
+      ? payload.fullname 
+      : user.fullname;
 
       const requestBody = {
         source_sdk: 'rest_api',
@@ -108,9 +112,9 @@ let signature = hmac.digest().toString("base64");
         country: user.currency.slice(0, 2),
         id_type: payload.id_type,
         id_number: payload.bvn,
-        first_name: user.fullname.split(' ')[0],
+        first_name: fullnameToUse.split(' ')[0],
         middle_name: payload.middle_name || '',
-        last_name: user.fullname.split(' ')[1],
+        last_name: fullnameToUse.split(' ')[1],
         dob: user.dateOfBirth || '',
         gender: payload.gender || 'M',
         phone_number: user.phoneNumber || '',

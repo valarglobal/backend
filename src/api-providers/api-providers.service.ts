@@ -488,7 +488,8 @@ export class ApiProviderService {
   async verifyBasicKyc(
     userId: string,
     payload: {
-      middle_name?: string;
+      fullname?: string;
+     
       bvn: string;
       gender?: string;
     },

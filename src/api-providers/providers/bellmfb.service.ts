@@ -280,7 +280,7 @@ export class BellAccountService {
   
   }) {
  
-    const url = this.PRODUCTION_BASE_URL  + '/v1/transfer';
+    const url = this.PRODUCTION_BASE_URL + '/v1/transfer';
 
   
 

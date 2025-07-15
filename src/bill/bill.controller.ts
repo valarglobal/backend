@@ -90,11 +90,11 @@ export class BillController {
   async getAirtimeVariation(@Query('operatorId') operatorId: number) {
     return this.billService.getVariation(operatorId);
   }
-
-  @Get('data/get-variation')
+@Get('data/get-variation')
   async getDataVariation(@Query('operatorId') operatorId: number) {
     return this.billService.getVariation(operatorId);
   }
+  
 
   @Post('data/pay')
   @HttpCode(HttpStatus.OK)

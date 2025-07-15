@@ -101,7 +101,7 @@ export class AppModule implements NestModule {
       .exclude(
         { path: 'v1/auth/register', method: RequestMethod.POST },
         { path: 'v1/auth/register-business', method: RequestMethod.POST },
-        { path: 'v1/admin/airtime/add-plan', method: RequestMethod.POST },
+        { path: 'v1/bill/data/get-variation', method: RequestMethod.GET },
         { path: 'v1/auth/login', method: RequestMethod.POST },
         { path: 'v1/auth/verify-email', method: RequestMethod.POST },
         { path: 'v1/auth/resend-verify-email', method: RequestMethod.POST },
