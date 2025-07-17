@@ -1,4 +1,4 @@
-import { BadRequestException, HttpStatus, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RegisterDto } from './dto/RegisterDto';
 import * as bcrypt from 'bcrypt';
@@ -17,6 +17,7 @@ import { ResetPasswordDto } from './dto/ResetPasswordDto';
 import { RegisterBusinessDto } from './dto/RegisterBusinessDto';
 import { REFERRAL_BONUS_PRICE } from 'src/constants';
 import { WalletEntity } from 'src/wallet/serializer/wallet.serializer';
+import { BiometricRegistrationDto } from './dto/BiometricRegistrationDto';
 
 @Injectable()
 export class AuthService {
@@ -156,6 +157,9 @@ export class AuthService {
       });
   }
 
+
+
+
   async login(body: LoginDto) {
     const user = await this.prisma.user.findFirst({
       where: {
@@ -272,6 +276,90 @@ export class AuthService {
       accessToken,
     };
   }
+
+  async findByBiometricKey(biometricKey: string) {
+    return (
+      (await this.prisma.user.findUnique({
+        where: { biometricCredential: biometricKey },
+       
+      })) || null
+    );
+  }
+
+
+  async validateBiometricUser(key: string): Promise<any> {
+    const user: User = await this.findByBiometricKey(key);
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+
+
+    const currentTokenVersion = this.getCurrentVersion(user);
+      const jwtPayload = {
+        sub: user.id,
+        email: user.email,
+        version: currentTokenVersion,
+      };
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { tokenVersion: currentTokenVersion },
+      });
+
+      const accessToken = await this.jwtService.signAsync(jwtPayload, {
+        secret: this.configService.get('JWT_SECRET'),
+        expiresIn: '1h',
+      });
+    
+      return {
+        message: 'Login successful',
+        user: plainToInstance(UserEntity, user),
+        statusCode: HttpStatus.OK,
+        accessToken,
+      };
+
+  }
+
+  async biometricRegistration(
+    body: BiometricRegistrationDto,
+  ) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ email: body.email }, { username: body.email }],
+      },
+      include:{
+        wallet: true,
+      }
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid email or password');
+    }
+
+    //Check BiometricCredential doesnt exist for another user
+    const userKey = await this.findByBiometricKey(
+     body.key,
+    );
+    if (userKey) {
+      throw Error('Already registered');
+    }
+
+
+    // Register Biometric Credential
+  // return await this.prisma.user.update({
+  //     { id: user.id },
+  //     { biometricCredential: body.key },
+  // });
+
+  return await this.prisma.user.update({
+    where: { id: user.id },
+    data: { biometricCredential: body.key },
+  });
+  }
+
+
 
   async verifyEmail(body: VerifyEmailDto) {
     const user = await this.prisma.user.findFirst({

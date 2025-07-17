@@ -21,6 +21,7 @@ import { WalletModule } from './wallet/wallet.module';
 import { BillModule } from './bill/bill.module';
 import { AdminModule } from './admin/admin.module';
 import { TestFolderModule } from './test-folder/test-folder.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { TestFolderModule } from './test-folder/test-folder.module';
     BillModule,
     AdminModule,
     TestFolderModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

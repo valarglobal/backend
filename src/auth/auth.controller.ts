@@ -16,6 +16,7 @@ import { Request } from 'express';
 import { PasscodeLoginDto } from './dto/PasscodeLoginDto';
 import { ResetPasswordDto } from './dto/ResetPasswordDto';
 import { RegisterBusinessDto } from './dto/RegisterBusinessDto';
+import { BiometricRegistrationDto } from './dto/BiometricRegistrationDto';
 
 @Controller('v1/auth')
 export class AuthController {
@@ -32,6 +33,20 @@ export class AuthController {
   async registerBusinessAccount(@Body() body: RegisterBusinessDto) {
     return this.authService.register(body);
   }
+
+  @Post('biometric-register')
+  @HttpCode(HttpStatus.CREATED)
+  async registerBiomertics(@Body() body: BiometricRegistrationDto) {
+    return this.authService.biometricRegistration(body);
+  }
+
+  @Post('biometric-login')
+  @HttpCode(HttpStatus.CREATED)
+  async loginBiomertics(@Body() key:string) {
+    return this.authService.validateBiometricUser(key);
+  }
+
+
 
   @Post('login')
   async login(@Body() body: LoginDto) {

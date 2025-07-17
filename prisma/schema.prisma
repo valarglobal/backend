@@ -131,14 +131,15 @@ model User {
   isBvnVerified   Boolean @default(false)
   bvn             String?
 
-  isNinVerified     Boolean      @default(false)
-  isAddressVerified Boolean      @default(false)
-  nin               String?
-  address           String?
-  state             String?
-  city              String?
-  selfieBase64Image String?
-  accountType       ACCOUNT_TYPE @default(PERSONAL)
+  isNinVerified       Boolean      @default(false)
+  isAddressVerified   Boolean      @default(false)
+  nin                 String?
+  address             String?
+  state               String?
+  city                String?
+  selfieBase64Image   String?
+  biometricCredential String?      @unique
+  accountType         ACCOUNT_TYPE @default(PERSONAL)
 
   walletPin      String?
   isWalletPinSet Boolean @default(false)
@@ -169,11 +170,30 @@ model User {
   beneficiaries Beneficiary[]
   scamTicket    ScamTicket[]
 
-  isBusinessRegistered Boolean @default(false)
+  isBusinessRegistered Boolean     @default(false)
+  pushTokens           PushToken[]
 
   //table name
   @@map("users")
 }
+
+model PushToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @db.Uuid
+  token     String   @unique
+  deviceId  String?
+  platform  String // 'ios' | 'android' | 'web'
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relation to your User model
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("push_tokens")
+}
+
+// Add this to your existing User model
 
 model Wallet {
   id       String   @id @default(uuid()) @db.Uuid
