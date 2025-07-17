@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { NotificationsController } from './notifications.controller';
 import { PushTokenService } from './push-token.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { PushNotificationService } from './notifications.service';
 
 
 @Module({
@@ -13,6 +14,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     ConfigModule,
   ],
   controllers: [NotificationsController, ],
-  providers: [PushTokenService,]
+  providers: [PushTokenService, PushNotificationService],
+  exports: [PushNotificationService, PushTokenService],
 })
 export class NotificationsModule {}
