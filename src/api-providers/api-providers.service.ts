@@ -132,9 +132,13 @@ export class ApiProviderService {
 
       } else{
 
+        const nameParts = user?.fullname?.trim().split(/\s+/) || [];
+        const firstname = nameParts[0] || '';
+        const lastname = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+  
         const res = await this.bellAccountService.createIndividualClient({
-          firstname: user?.fullname.split(' ')[0],
-          lastname: user?.fullname.split(' ')[1],
+          firstname,
+          lastname,
           phoneNumber: this.addCountryCode(user?.phoneNumber),
           address: user?.address,
           bvn: String(bvn),

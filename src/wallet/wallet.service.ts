@@ -43,6 +43,7 @@ import jsQR from 'jsqr';
 import { EmailService } from 'src/email/email.service';
 import { getSMSAlertMessage } from 'src/utils';
 import { SmileIdBasicKycPayload } from 'src/api-providers/providers/smile-id.service';
+import { PushNotificationService } from 'src/notifications/notifications.service';
 
 @Injectable()
 export class WalletService {
@@ -50,6 +51,7 @@ export class WalletService {
     private readonly prisma: PrismaService,
     private readonly apiProvider: ApiProviderService,
     private readonly emailService: EmailService,
+     private readonly pushNotificationService: PushNotificationService,
   ) { }
 
   async getAllBanks() {
@@ -903,7 +905,44 @@ export class WalletService {
           } catch (error) {
             console.log('Error sending credit transfer alert', error);
           }
+
+                 try {
+            // Send push notification to sender (debit notification)
+            await this.pushNotificationService.sendTransferCompletedNotification(
+              user.id,
+              body.amount,
+              toWallet.accountName,
+              debitTrxRef,
+            );
+
+            // Send push notification to recipient (credit notification)
+            // Get recipient user ID from toWallet
+            const recipientUser = await trx.user.findFirst({
+              where: {
+                wallet: {
+                  some: {
+                    id: toWallet.id
+                  }
+                }
+              }
+            });
+
+            if (recipientUser) {
+              await this.pushNotificationService.sendIncomingTransferNotification(
+                recipientUser.id,
+                body.amount,
+                fromWallet.accountName,
+                creditTrxRef,
+              );
+            }
+          } catch (error) {
+            console.log('Error sending push notifications:', error);
+            // Don't throw error - push notification failure shouldn't fail the transfer
+          }
+         
         });
+
+        
 
         return {
           message: 'Transfer initiated successfully',
@@ -1180,6 +1219,20 @@ export class WalletService {
         } catch (error) {
           console.log('Error sending transfer alert', error);
         }
+
+          try {
+        // ... existing email and SMS alert logic ...
+
+        // Send push notification for successful inter-bank transfer
+        await this.pushNotificationService.sendTransferCompletedNotification(
+          user.id,
+          body.amount,
+          transferData?.destinationAccountName,
+          trxRef,
+        );
+      } catch (error) {
+        console.log('Error sending transfer alert or push notification:', error);
+      }
 
         return {
           message: 'Transfer initiated successfully',
