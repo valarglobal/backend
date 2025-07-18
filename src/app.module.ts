@@ -118,6 +118,7 @@ export class AppModule implements NestModule {
         { path: 'v1/webhook/flutterwave', method: RequestMethod.POST },
         { path: 'v1/webhook/VFD/payment', method: RequestMethod.POST },
         { path: 'v1/webhook/safehaven', method: RequestMethod.POST },
+        { path: 'v1/webhook/bellmfb', method: RequestMethod.POST },
         { path: 'v1/test-folder/create-account', method: RequestMethod.POST },
         { path: 'v1/test-folder/credit-account', method: RequestMethod.POST },
         { path: 'v1/test-folder/get-banks', method: RequestMethod.GET },
