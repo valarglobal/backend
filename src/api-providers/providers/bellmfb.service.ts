@@ -327,9 +327,7 @@ export class BellAccountService {
         throw new InternalServerErrorException('Error verifying transaction: ' + verificationResponse.message);
       }
 
-      // You can use verificationResponse.data for additional details if needed, e.g., to cross-verify amounts
-      // For example:
-      // if (Number(verificationResponse.data.netAmount) !== Number(eventData.netAmount)) throw new Error('Amount mismatch');
+
 
       // Check for existing payment event
       const existingPaymentEvent = await this.prisma.paymentEvent.findFirst({
@@ -426,7 +424,7 @@ export class BellAccountService {
         // SMS logic
         this.helperService.sendSms(
           wallet.user.phoneNumber,
-          // Adapt getSMSAlertMessage function as needed
+  
           `Credit alert: ${amount} from ${eventData.sourceAccountName}`,
           'termii',
         );
