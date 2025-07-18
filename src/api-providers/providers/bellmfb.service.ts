@@ -1,6 +1,12 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { TRANSACTION_TYPE, TRANSACTION_CATEGORY, TRANSACTION_STATUS } from '@prisma/client';
 import axios from 'axios';
+import { any, string } from 'joi';
+import { async } from 'rxjs';
+import { EmailService } from 'src/email/email.service';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { HelperService } from './helper.service';
 
 interface IndividualClientPayload {
   firstname: string;
@@ -84,7 +90,12 @@ export class BellAccountService {
   SANDBOX_BASE_URL = 'https://sandbox-baas-api.bellmfb.com';
   PRODUCTION_BASE_URL = 'https://baas-api.bellmfb.com';
 
-  constructor(private readonly configService: ConfigService) { }
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
+    private readonly helperService: HelperService,
+  ) {}
 
   async getAccessToken() {
     const url = this.PRODUCTION_BASE_URL + '/v1/generate-token';
@@ -302,4 +313,146 @@ export class BellAccountService {
 
     return response?.data;
   }
+
+    async handleTransferWebhook(body: any) {
+    const eventData = body;
+
+    if (eventData.event !== 'collection') return;
+
+    try {
+      const verificationResponse = await this.verifyTransaction(eventData.reference);
+      const isVerified = verificationResponse.success && verificationResponse.data.status === 'successful'; // Enhanced check using status from data
+
+      if (!isVerified) {
+        throw new InternalServerErrorException('Error verifying transaction: ' + verificationResponse.message);
+      }
+
+      // You can use verificationResponse.data for additional details if needed, e.g., to cross-verify amounts
+      // For example:
+      // if (Number(verificationResponse.data.netAmount) !== Number(eventData.netAmount)) throw new Error('Amount mismatch');
+
+      // Check for existing payment event
+      const existingPaymentEvent = await this.prisma.paymentEvent.findFirst({
+        where: { refId: eventData.reference },
+      });
+
+      if (existingPaymentEvent) return;
+
+      // Get wallet
+      const wallet = await this.prisma.wallet.findFirst({
+        where: {
+          accountNumber: eventData.virtualAccount,
+          currency: eventData.destinationCurrency ?? 'NGN',
+        },
+        include: { user: true },
+      });
+
+      if (!wallet) throw new InternalServerErrorException('Wallet not found');
+
+      const oldBalance = wallet.balance;
+      const newBalance = oldBalance + Number(eventData.netAmount);
+
+      // Get sender bank name (if needed, perhaps from sourceBankCode)
+      const senderBankName = eventData.sourceBankName;
+
+      await Promise.all([
+        // Update wallet balance
+        this.prisma.wallet.update({
+          where: { id: wallet.id },
+          data: { balance: newBalance },
+        }),
+        // Create payment event
+        this.prisma.paymentEvent.create({
+          data: {
+            refId: eventData.reference,
+            status: eventData.status ?? 'successful',
+            currency: eventData.destinationCurrency ?? 'NGN',
+            fee: Number(eventData.transactionFee) + Number(eventData.stampDuty),
+            amountPaid: Number(eventData.amountReceived),
+            settlementAmount: Number(eventData.netAmount),
+          },
+        }),
+      ]);
+
+      // Create transaction
+      await this.prisma.transaction.create({
+        data: {
+          walletId: wallet.id,
+          transactionRef: eventData.reference,
+          type: TRANSACTION_TYPE.CREDIT,
+          category: TRANSACTION_CATEGORY.DEPOSIT,
+          currency: eventData.destinationCurrency ?? 'NGN',
+          status: TRANSACTION_STATUS.success,
+          previousBalance: oldBalance,
+          currentBalance: newBalance,
+          description: eventData.remarks,
+          depositDetails: {
+            senderName: eventData.sourceAccountName,
+            senderAccountNumber: eventData.sourceAccountNumber,
+            senderBankName: eventData.sourceBankName,
+            beneficiaryName: wallet.accountName, // Adjust as needed
+            beneficiaryAccountNumber: eventData.virtualAccount,
+            beneficiaryBankName: 'Bell MFB', // Adjust as needed
+            amount: Number(eventData.netAmount),
+            amountPaid: Number(eventData.amountReceived),
+          },
+        },
+      });
+
+      // Send alerts (email and SMS) - adapt from the example
+      try {
+        // Email logic similar to example
+        const amount = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(eventData.netAmount);
+        const now = new Date();
+        const formattedDate = now.toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' });
+
+        this.emailService.sendEmail({
+          to: wallet.user.email,
+          subject: 'Credit Alert',
+          template: 'user/credit.hbs',
+          context: {
+            amount,
+            accountName: wallet.accountName,
+            accountNumber: wallet.accountNumber, // Mask as needed
+            senderName: eventData.sourceAccountName,
+            dateAndTime: formattedDate,
+            narration: eventData.remarks || '',
+            reference: eventData.reference,
+            availableBalance: new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(newBalance),
+            year: new Date().getFullYear(),
+          },
+        });
+
+        // SMS logic
+        this.helperService.sendSms(
+          wallet.user.phoneNumber,
+          // Adapt getSMSAlertMessage function as needed
+          `Credit alert: ${amount} from ${eventData.sourceAccountName}`,
+          'termii',
+        );
+      } catch (error) {
+        console.log('Error sending deposit alert', error);
+      }
+    } catch (error) {
+      console.log('error handling Bell webhook', error);
+      throw error;
+    }
+  }
+
+   // Implement verifyTransaction based on Bell docs
+  async verifyTransaction(reference: string) {
+    const url = `${this.PRODUCTION_BASE_URL}/v1/transactions/reference/${reference}`;
+    try {
+      const response = await axios.get(url, { headers: await this.getHeaders() });
+      return response.data;
+    } catch (error) {
+      console.log('Error verifying transaction:', error.response?.data || error.message);
+      throw new InternalServerErrorException('Failed to verify transaction');
+    }
+  }
 }
+
+
+
+
+ 

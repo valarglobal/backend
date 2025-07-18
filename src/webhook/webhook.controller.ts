@@ -55,4 +55,14 @@ export class WebhookController {
     await this.webhookService.resolveSafeHavenWebhook(body);
     return res.status(200).end();
   }
+
+  @Post('bellmfb')
+  async bellMFBHandler(
+    @Body() body: any,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    await this.webhookService.resolveBellMFBWebhook(body);
+    return res.status(200).end();
+  }
 }

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { FlutterwaveService } from 'src/api-providers/providers/flutterwave.service';
 import { SafeHavenService } from 'src/api-providers/providers/safe-haven.service';
 import { VFDBankService } from 'src/api-providers/providers/VFDBank.service';
+import { BellAccountService } from 'src/api-providers/providers/bellmfb.service'; // Add this import
 
 @Injectable()
 export class WebhookService {
@@ -9,6 +10,7 @@ export class WebhookService {
     private readonly flutterwaveService: FlutterwaveService,
     private readonly VFDBankService: VFDBankService,
     private readonly safeHavenService: SafeHavenService,
+    private readonly bellAccountService: BellAccountService, // Add this injection
   ) {}
 
   async resolveFlutterwaveWebhook(body: any) {
@@ -46,6 +48,14 @@ export class WebhookService {
         break;
       default:
         console.log('no webhook event found');
+    }
+  }
+
+  async resolveBellMFBWebhook(body: any) {
+    if (body?.event === 'collection') {
+      this.bellAccountService.handleTransferWebhook(body);
+    } else {
+      console.log('no matching webhook event');
     }
   }
 }
