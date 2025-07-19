@@ -52,10 +52,8 @@ export class WebhookService {
   }
 
   async resolveBellMFBWebhook(body: any) {
-    if (body?.event === 'collection') {
+ 
       this.bellAccountService.handleTransferWebhook(body);
-    } else {
-      console.log('no matching webhook event');
-    }
+    } 
   }
-}
+

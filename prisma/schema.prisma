@@ -179,8 +179,8 @@ model User {
 
 model PushToken {
   id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @unique @db.Uuid
-  token     String   @unique
+  userId    String   @db.Uuid // Remove @unique to allow multiple devices per user
+  token     String // Remove @unique to allow same token for different users
   deviceId  String?
   platform  String // 'ios' | 'android' | 'web'
   isActive  Boolean  @default(true)
@@ -190,6 +190,10 @@ model PushToken {
   // Relation to your User model
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Composite unique constraint: same user can't have same token twice
+  @@unique([userId, token])
+  // Optional: Ensure one active token per user per device
+  @@unique([userId, deviceId])
   @@map("push_tokens")
 }
 

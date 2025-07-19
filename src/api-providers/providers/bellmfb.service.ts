@@ -7,6 +7,7 @@ import { async } from 'rxjs';
 import { EmailService } from 'src/email/email.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { HelperService } from './helper.service';
+import { log } from 'console';
 
 interface IndividualClientPayload {
   firstname: string;
@@ -316,6 +317,8 @@ export class BellAccountService {
 
     async handleTransferWebhook(body: any) {
     const eventData = body;
+
+    console.log('Bell webhook event data:', eventData);
 
     if (eventData.event !== 'collection') return;
 
