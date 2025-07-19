@@ -376,7 +376,7 @@ export class ApiProviderService {
       amount: body?.amount,
       narration: body?.description,
       reference: trx_ref,
- senderName
+      senderName
     
     });
   }

@@ -1016,6 +1016,7 @@ export class WalletService {
     const BASE_DELAY = CONCURRENT_BASE_DELAY;
 
     const trxRef = this.generateTransactionRef('DEBIT');
+    const senderName = user.wallet.accountName
     let beneficiaryBankName: any;
     let transferData: any;
     let pendingTransactionId: string;
@@ -1083,9 +1084,10 @@ export class WalletService {
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
+
         const res = await this.apiProvider.transferBellBankFund(
           { ...body, amount: amountPaid },
-          user.wallet.accountName,
+        senderName,
           trxRef,
         );
 
@@ -1170,11 +1172,8 @@ export class WalletService {
             template: 'user/debit.hbs',
             context: {
               amount,
-              accountName: fromWallet.accountName
-  .split(' - ')[1] 
-  .split(' ')      
-  .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()) 
-  .join(' '),
+              accountName: fromWallet.accountName,
+  
               // accountName: fromWallet.accountName
               //   .split('/')[1]
               //   .split(' ')
@@ -1220,19 +1219,19 @@ export class WalletService {
           console.log('Error sending transfer alert', error);
         }
 
-          try {
-        // ... existing email and SMS alert logic ...
+      //     try {
+      //   // ... existing email and SMS alert logic ...
 
-        // Send push notification for successful inter-bank transfer
-        await this.pushNotificationService.sendTransferCompletedNotification(
-          user.id,
-          body.amount,
-          transferData?.destinationAccountName,
-          trxRef,
-        );
-      } catch (error) {
-        console.log('Error sending transfer alert or push notification:', error);
-      }
+      //   // Send push notification for successful inter-bank transfer
+      //   await this.pushNotificationService.sendTransferCompletedNotification(
+      //     user.id,
+      //     body.amount,
+      //     transferData?.destinationAccountName,
+      //     trxRef,
+      //   );
+      // } catch (error) {
+      //   console.log('Error sending transfer alert or push notification:', error);
+      // }
 
         return {
           message: 'Transfer initiated successfully',

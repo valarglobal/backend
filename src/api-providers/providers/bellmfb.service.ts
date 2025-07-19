@@ -288,7 +288,7 @@ export class BellAccountService {
     amount: number;
     narration: string;
     reference?: string;
-    senderName?:string
+    senderName:string
   
   }) {
  
@@ -296,7 +296,7 @@ export class BellAccountService {
 
   
 
-    // console.log('payload for transfer', payload);
+    console.log('payload for transfer', payload);
     let response: any;
     try {
       response = await axios.post(url, payload, {
