@@ -108,7 +108,7 @@ export class BellAccountService {
       validityTime: this.configService.get<number>('BELL_CONSUMER_VALIDITY_TIME'),
     };
 
-    console.log('headers', headers);
+    // console.log('headers', headers);
     try {
 
       const response = await axios.post(url, {}, { headers });
@@ -117,7 +117,7 @@ export class BellAccountService {
         throw new InternalServerErrorException('Failed to generate token');
 
       const data = response?.data;
-      console.log('token data', data);
+      // console.log('token data', data);
 
       return {
         accessToken: data?.token,
