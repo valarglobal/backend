@@ -281,6 +281,9 @@ export class AuthService {
     return (
       (await this.prisma.user.findUnique({
         where: { biometricCredential: biometricKey },
+        include:{
+          wallet: true,
+        }
        
       })) || null
     );
