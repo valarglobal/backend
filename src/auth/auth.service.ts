@@ -561,6 +561,9 @@ export class AuthService {
   async passcodeLogin(body: PasscodeLoginDto) {
     const user = await this.prisma.user.findFirst({
       where: { email: body.email },
+      include:{
+        wallet: true,
+      }
     });
 
     if (!user) {
