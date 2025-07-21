@@ -106,6 +106,7 @@ export class AppModule implements NestModule {
         { path: 'v1/auth/register-business', method: RequestMethod.POST },
         { path: 'v1/bill/data/get-variation', method: RequestMethod.GET },
         { path: 'v1/auth/login', method: RequestMethod.POST },
+        { path: 'v1/auth/biometric-register', method: RequestMethod.POST },
         { path: 'v1/auth/biometric-login', method: RequestMethod.POST },
         { path: 'v1/auth/verify-email', method: RequestMethod.POST },
         { path: 'v1/auth/resend-verify-email', method: RequestMethod.POST },
