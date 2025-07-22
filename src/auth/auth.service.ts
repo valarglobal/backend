@@ -279,19 +279,26 @@ export class AuthService {
 
   async findByBiometricKey(biometricKey: string) {
     return (
-      (await this.prisma.user.findUnique({
+      await this.prisma.user.findUnique({
         where: { biometricCredential: biometricKey },
         include:{
           wallet: true,
         }
        
-      })) || null
+      }) || null
     );
   }
 
 
   async validateBiometricUser(key: string): Promise<any> {
+
+    console.log(key)
+    if (!key) {
+      throw new UnauthorizedException('Biometric key is required');
+    }
     const user: User = await this.findByBiometricKey(key);
+
+    console.log('user', user);
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');

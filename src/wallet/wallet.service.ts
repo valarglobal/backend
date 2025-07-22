@@ -1441,7 +1441,7 @@ export class WalletService {
       data = await this.apiProvider.verifyAccount(
         wallet?.accountNumber,
         defaultBankCode,
-        false
+        true
       );
     } catch (error) {
       console.log('error verifying account number', error);

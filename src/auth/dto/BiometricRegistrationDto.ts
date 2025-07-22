@@ -12,3 +12,13 @@ export class BiometricRegistrationDto {
     @IsString()
     key: string;
   }
+
+
+  export class BiometricLoginDto {
+;
+  
+    @ApiProperty()
+    @IsNotEmpty({ message: 'Key is required' })
+    @IsString()
+    key: string;
+  }

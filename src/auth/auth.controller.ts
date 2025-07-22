@@ -16,7 +16,7 @@ import { Request } from 'express';
 import { PasscodeLoginDto } from './dto/PasscodeLoginDto';
 import { ResetPasswordDto } from './dto/ResetPasswordDto';
 import { RegisterBusinessDto } from './dto/RegisterBusinessDto';
-import { BiometricRegistrationDto } from './dto/BiometricRegistrationDto';
+import { BiometricLoginDto, BiometricRegistrationDto } from './dto/BiometricRegistrationDto';
 
 @Controller('v1/auth')
 export class AuthController {
@@ -42,8 +42,9 @@ export class AuthController {
 
   @Post('biometric-login')
   @HttpCode(HttpStatus.CREATED)
-  async loginBiomertics(@Body() key:string) {
-    return this.authService.validateBiometricUser(key);
+  async loginBiomertics(@Body() body:BiometricLoginDto) {
+    console.log('Biometric login key:', body);
+    return this.authService.validateBiometricUser(body.key);
   }
 
 
