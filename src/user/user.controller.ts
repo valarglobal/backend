@@ -80,6 +80,7 @@ export class UserController {
     @Req() req: Request,
   ): Promise<any> {
     const user = req['user'];
+    console.log('File:', file);
     return this.userService.editProfile(body, user, file);
   }
 

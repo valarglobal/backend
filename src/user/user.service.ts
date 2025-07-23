@@ -851,6 +851,8 @@ export class UserService {
     user: User,
     file: Express.Multer.File,
   ) {
+
+    console.log(file)
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
