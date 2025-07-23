@@ -8,6 +8,7 @@ import { EmailService } from 'src/email/email.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { HelperService } from './helper.service';
 import { log } from 'console';
+import { PushNotificationService } from 'src/notifications/notifications.service';
 
 interface IndividualClientPayload {
   firstname: string;
@@ -96,6 +97,7 @@ export class BellAccountService {
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
     private readonly helperService: HelperService,
+    private readonly pushNotificationService: PushNotificationService,
   ) {}
 
   async getAccessToken() {
@@ -351,7 +353,7 @@ export class BellAccountService {
       if (!wallet) throw new InternalServerErrorException('Wallet not found');
 
       const oldBalance = wallet.balance;
-      const newBalance = oldBalance + Number(eventData.netAmount);
+      const newBalance = oldBalance + Number(eventData.amountReceived);
 
       // Get sender bank name (if needed, perhaps from sourceBankCode)
       const senderBankName = eventData.sourceBankName;
@@ -403,7 +405,7 @@ export class BellAccountService {
       // Send alerts (email and SMS) - adapt from the example
       try {
         // Email logic similar to example
-        const amount = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(eventData.netAmount);
+        const amount = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(eventData.amountReceived);
         const now = new Date();
         const formattedDate = now.toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' });
 
@@ -427,10 +429,24 @@ export class BellAccountService {
         // SMS logic
         this.helperService.sendSms(
           wallet.user.phoneNumber,
-  
+
           `Credit alert: ${amount} from ${eventData.sourceAccountName}`,
           'termii',
         );
+
+        try {
+          // ... existing email and SMS alert logic ...
+  
+          // Send push notification for successful inter-bank transfer
+          await this.pushNotificationService.sendIncomingTransferNotification(
+            wallet.user.id,
+          eventData.amountReceived,
+          eventData.sourceAccountName,
+            "",
+          );
+        } catch (error) {
+          console.log('Error sending transfer alert or push notification:', error);
+        }
       } catch (error) {
         console.log('Error sending deposit alert', error);
       }

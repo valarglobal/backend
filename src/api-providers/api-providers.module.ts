@@ -14,9 +14,10 @@ import { HelperService } from './providers/helper.service';
 import { SendarSmsService } from './providers/sendar.service';
 import { BellAccountService } from './providers/bellmfb.service';
 import { SmileIdService } from './providers/smile-id.service';
+import { NotificationsModule } from 'src/notifications/notifications.module';
 
 @Module({
-  imports: [PrismaModule, EmailModule],
+  imports: [PrismaModule, EmailModule, NotificationsModule],
   providers: [
     ApiProviderService,
     SafeHavenService,

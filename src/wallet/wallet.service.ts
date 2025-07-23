@@ -1087,7 +1087,7 @@ export class WalletService {
 
         const res = await this.apiProvider.transferBellBankFund(
           { ...body, amount: amountPaid },
-        senderName,
+        fromWallet.accountName,
           trxRef,
         );
 
@@ -1219,19 +1219,19 @@ export class WalletService {
           console.log('Error sending transfer alert', error);
         }
 
-      //     try {
-      //   // ... existing email and SMS alert logic ...
+          try {
+        // ... existing email and SMS alert logic ...
 
-      //   // Send push notification for successful inter-bank transfer
-      //   await this.pushNotificationService.sendTransferCompletedNotification(
-      //     user.id,
-      //     body.amount,
-      //     transferData?.destinationAccountName,
-      //     trxRef,
-      //   );
-      // } catch (error) {
-      //   console.log('Error sending transfer alert or push notification:', error);
-      // }
+        // Send push notification for successful inter-bank transfer
+        await this.pushNotificationService.sendTransferCompletedNotification(
+          user.id,
+          body.amount,
+          transferData?.destinationAccountName,
+          trxRef,
+        );
+      } catch (error) {
+        console.log('Error sending transfer alert or push notification:', error);
+      }
 
         return {
           message: 'Transfer initiated successfully',
