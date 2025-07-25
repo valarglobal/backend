@@ -475,6 +475,18 @@ export class BillService {
 
     if (!isMatched) throw new BadRequestException('Incorrect pin');
 
+  const ADMIN_ACCOUNT_NUMBER = 'ADMIN_ACCOUNT_NUMBER'; // Replace with actual admin account number
+  const adminFee = 150;
+  let billAmount = body.amount;
+  let shouldDeductAdminFee =
+    bill_type === BILL_TYPE.electricity 
+  if (shouldDeductAdminFee) {
+    if (body.amount <= adminFee) {
+      throw new BadRequestException('Amount must be greater than 150');
+    }
+    billAmount = body.amount - adminFee;
+  }
+
     const trx_ref = this.generateTransactionRef('DEBIT');
     const MAX_RETRIES = CONCURRENT_MAX_RETRIES;
     const BASE_DELAY = CONCURRENT_BASE_DELAY;
@@ -685,6 +697,43 @@ export class BillService {
             },
           },
         });
+
+
+ if (body.fee && Number(body.fee) > 0 && bill_type === BILL_TYPE.electricity) {
+          const ADMIN_ACCOUNT_NUMBER = '1000208568'; // Replace with actual admin account number
+          const adminWallet = await this.prisma.wallet.findFirst({
+            where: { accountNumber: ADMIN_ACCOUNT_NUMBER },
+          });
+          if (adminWallet) {
+            const adminOldBalance = adminWallet.balance;
+            const adminNewBalance = adminOldBalance + Number(body.fee);
+            await this.prisma.wallet.update({
+              where: { id: adminWallet.id },
+              data: { balance: adminNewBalance },
+            });
+            await this.prisma.transaction.create({
+              data: {
+                walletId: adminWallet.id,
+                transactionRef: this.generateTransactionRef('CREDIT'),
+                type: TRANSACTION_TYPE.CREDIT,
+                category: TRANSACTION_CATEGORY.DEPOSIT,
+                currency: body.currency,
+                status: TRANSACTION_STATUS.success,
+                description: `Bill payment admin fee from user ${user.id}`,
+                previousBalance: adminOldBalance,
+                currentBalance: adminNewBalance,
+                depositDetails: {
+                  sourceUserId: user.id,
+                  billType: bill_type,
+                  fee: body.fee,
+                },
+              },
+            });
+          }
+        }
+        // ... existing code ...
+      
+      
 
         try {
           // send sms message

@@ -434,7 +434,7 @@ export class ApiProviderService {
       body.itemCode,
       body.billerCode,
       {
-        amount: body.amount,
+        amount: body.netAmount ? body.netAmount : body.amount,
         country: this.getCountryCodeFromCurrency(body.currency),
         customer_id: body.billerNumber,
         reference: trx_ref,

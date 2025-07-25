@@ -26,6 +26,11 @@ export class PayDto {
   @IsNumber()
   operatorId: number;
 
+   
+  @IsOptional()
+  @IsNumber()
+  fee: number;
+
   @ApiProperty({
     example: '+2348012345678',
     description: 'Phone number to receive the service',

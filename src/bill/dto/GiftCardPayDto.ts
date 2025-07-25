@@ -67,6 +67,11 @@ export class GiftCardPayDto {
   @IsString()
   walletPin: string;
 
+    
+  @IsOptional()
+  @IsNumber()
+  fee: number;
+
   @ApiPropertyOptional({
     example: false,
     description: 'Whether to save recipient as beneficiary',

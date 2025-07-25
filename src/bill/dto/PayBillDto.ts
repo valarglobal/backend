@@ -46,6 +46,17 @@ export class PayBillDto {
   @IsOptional()
   billerNumber: string;
 
+
+  @IsOptional()
+  @IsNumber()
+  fee: number;
+
+
+
+  @IsOptional()
+  @IsNumber()
+  netAmount: number;
+
   @ApiProperty({
     example: 5000,
     description: 'Amount to pay for the bill',
