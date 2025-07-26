@@ -82,7 +82,7 @@ export class UserService {
           where: {
             userId: user.id,
             type: category,
-            accountName: { startsWith: 'VALARPAYGLOBALS' },
+            accountName: { startsWith: 'ValarPay-' },
           },
         });
       } else if (transferType === 'inter') {
