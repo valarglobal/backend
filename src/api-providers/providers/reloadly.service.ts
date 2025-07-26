@@ -138,6 +138,12 @@ export class ReloadlyService {
   }) {
     const url = this.AIRTIME_BASE_URL + `/topups`;
 
+
+
+    console.log('payTopup payload', payload);   
+
+
+
     const response = await axios.post(url, payload, {
       headers: await this.getHeaders(this.AIRTIME_BASE_URL),
     });
