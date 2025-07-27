@@ -365,7 +365,7 @@ export class AuthService {
 
   return await this.prisma.user.update({
     where: { id: user.id },
-    data: { biometricCredential: body.key },
+    data: { biometricCredential: body.key , isBiometricVerified: true },
   });
   }
 

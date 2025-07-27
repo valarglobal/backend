@@ -139,6 +139,7 @@ model User {
   city                String?
   selfieBase64Image   String?
   biometricCredential String?      @unique
+  isBiometricVerified Boolean      @default(false)
   accountType         ACCOUNT_TYPE @default(PERSONAL)
 
   walletPin      String?
