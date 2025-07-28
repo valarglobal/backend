@@ -431,7 +431,7 @@ export class BellAccountService {
           wallet.user.phoneNumber,
 
           `Credit alert: ${amount} from ${eventData.sourceAccountName}`,
-          'termii',
+          'sendar',
         );
 
         try {

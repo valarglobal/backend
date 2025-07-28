@@ -830,7 +830,7 @@ export class WalletService {
                 maskedRAccountNumber,
                 toWallet.bankName.toUpperCase(),
               ),
-              'termii',
+              'sendar',
             );
           } catch (error) {
             console.log('Error sending debit transfer alert', error);
@@ -900,7 +900,7 @@ export class WalletService {
                 maskedRAccountNumber,
                 fromWallet.bankName.toLowerCase(),
               ),
-              'termii',
+            'sendar',
             );
           } catch (error) {
             console.log('Error sending credit transfer alert', error);
@@ -1213,7 +1213,7 @@ export class WalletService {
               maskedRAccountNumber,
               beneficiaryBankName.toUpperCase(),
             ),
-            'termii',
+            'sendar',
           );
         } catch (error) {
           console.log('Error sending transfer alert', error);

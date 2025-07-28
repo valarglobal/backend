@@ -963,7 +963,7 @@ export class UserService {
       res = await this.apiProvider.sendSms(
         body.phoneNumber,
         otpMessage,
-        'termii',
+        'sendar',
         'sms',
       );
 
