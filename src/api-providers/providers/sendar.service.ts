@@ -20,7 +20,7 @@ interface SendarResponse {
 }
 
 @Injectable()
-export class SendarService {
+export class SendarSmsService {
   constructor(private readonly configService: ConfigService) {}
 
   async sendSms(data: {

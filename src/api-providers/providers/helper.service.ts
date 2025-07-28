@@ -36,12 +36,9 @@ export class HelperService {
         message,
       });
     } else if (type === 'sendar') {
-      return this.sendarService.sendSMS({
-        contact: [{
-          number: this.addCountryCode(phoneNumber),
-          body: message,
-          sms_type: 'plain',
-        }],
+      return this.sendarService.sendSms({
+        phoneNumber: this.addCountryCode(phoneNumber),
+        message,
       });
     }
   }
