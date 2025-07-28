@@ -132,9 +132,14 @@ export class ApiProviderService {
 
       } else{
 
-        const nameParts = user?.fullname?.trim().split(/\s+/) || [];
-        const firstname = nameParts[0] || '';
+        console.log(user.fullname)
+
+        const nameParts = user?.fullname?.trim().split(/\s+/) ?? [];
+        const firstname = nameParts[0] ?? '';
         const lastname = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+        console.log('firstname', firstname);
+        console.log('lastname', lastname);
+        
   
         const res = await this.bellAccountService.createIndividualClient({
           firstname,
