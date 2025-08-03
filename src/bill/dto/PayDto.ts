@@ -55,7 +55,7 @@ export class PayDto {
     required: true,
     format: 'password'
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   walletPin: string;
 

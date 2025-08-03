@@ -63,7 +63,7 @@ export class GiftCardPayDto {
     required: true,
     format: 'password'
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   walletPin: string;
 
@@ -81,6 +81,7 @@ export class GiftCardPayDto {
   @IsOptional()
   @IsString()
   biometricKey: string;
+
   @ApiPropertyOptional({
     example: false,
     description: 'Whether to save recipient as beneficiary',

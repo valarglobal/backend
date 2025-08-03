@@ -80,7 +80,7 @@ export class PayBillDto {
     required: true,
     format: 'password'
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   walletPin: string;
 
