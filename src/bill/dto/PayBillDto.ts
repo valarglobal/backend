@@ -51,7 +51,15 @@ export class PayBillDto {
   @IsNumber()
   fee: number;
 
-
+  @ApiProperty({
+    example: '123456',
+    description: 'Wallet PIN for authorization',
+    required: true,
+    format: 'password'
+  })
+  @IsOptional()
+  @IsString()
+  biometricKey: string;
 
   @IsOptional()
   @IsNumber()

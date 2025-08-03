@@ -468,12 +468,35 @@ export class BillService {
     user: User & { wallet: Wallet },
     bill_type: BILL_TYPE,
   ) {
-    if (!user?.isWalletPinSet)
-      throw new BadRequestException('Wallet pin not set');
 
-    const isMatched = await bcrypt.compare(body?.walletPin, user?.walletPin);
+    if (!user?.isWalletPinSet && !user?.biometricCredential) {
+      throw new BadRequestException('No authentication method set');
+    }
 
-    if (!isMatched) throw new BadRequestException('Incorrect pin');
+    // Verify authentication method
+    if (body.walletPin) {
+      // Verify wallet PIN
+      const isMatched = await bcrypt.compare(body.walletPin, user?.walletPin);
+      if (!isMatched) {
+        throw new BadRequestException('Incorrect PIN');
+      }
+    } else if (body.biometricKey) {
+      // Verify biometric key
+      if (body.biometricKey !== user.biometricCredential) {
+        throw new BadRequestException('Invalid biometric authentication');
+      }
+    } else {
+      throw new BadRequestException('Either wallet PIN or biometric key is required');
+    }
+
+    // if (!user?.isWalletPinSet)
+    //   throw new BadRequestException('Wallet pin not set');
+
+
+
+    // const isMatched = await bcrypt.compare(body?.walletPin, user?.walletPin);
+
+    // if (!isMatched) throw new BadRequestException('Incorrect pin');
 
   const ADMIN_ACCOUNT_NUMBER = 'ADMIN_ACCOUNT_NUMBER'; // Replace with actual admin account number
   const adminFee = 150;

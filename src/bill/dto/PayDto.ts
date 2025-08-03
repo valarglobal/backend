@@ -59,6 +59,17 @@ export class PayDto {
   @IsString()
   walletPin: string;
 
+
+  @ApiProperty({
+    example: '123456',
+    description: 'Wallet PIN for authorization',
+    required: true,
+    format: 'password'
+  })
+  @IsOptional()
+  @IsString()
+  biometricKey: string;
+
   @ApiPropertyOptional({
     example: false,
     description: 'Whether to save recipient as beneficiary',
