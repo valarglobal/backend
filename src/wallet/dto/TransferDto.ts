@@ -41,9 +41,13 @@ export class TransferDto {
   @IsString()
   sessionId: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   walletPin: string;
+
+  @IsOptional()
+  @IsString()
+  biometricKey: string;
 
   @IsOptional()
   @IsString()

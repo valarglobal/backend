@@ -1296,14 +1296,34 @@ export class WalletService {
     body: TransferDto,
     user: User & { wallet?: Wallet },
   ) {
-    if (!user?.isWalletPinSet)
-      throw new BadRequestException('Wallet pin not set');
+    // if (!user?.isWalletPinSet)
+    //   throw new BadRequestException('Wallet pin not set');
 
-    console.log(user?.walletPin, body?.walletPin);
+    // console.log(user?.walletPin, body?.walletPin);
 
-    const isMatched = await bcrypt.compare(body?.walletPin, user?.walletPin);
+    // const isMatched = await bcrypt.compare(body?.walletPin, user?.walletPin);
 
-    if (!isMatched) throw new BadRequestException('Incorect pin');
+    // if (!isMatched) throw new BadRequestException('Incorect pin');
+
+    if (!user?.isWalletPinSet && !user?.biometricCredential) {
+          throw new BadRequestException('No authentication method set');
+        }
+    
+        // Verify authentication method
+        if (body.walletPin) {
+          // Verify wallet PIN
+          const isMatched = await bcrypt.compare(body.walletPin, user?.walletPin);
+          if (!isMatched) {
+            throw new BadRequestException('Incorrect PIN');
+          }
+        } else if (body.biometricKey) {
+          // Verify biometric key
+          if (body.biometricKey !== user.biometricCredential) {
+            throw new BadRequestException('Invalid biometric authentication');
+          }
+        } else {
+          throw new BadRequestException('Either wallet PIN or biometric key is required');
+        }
 
     // check if the account is restricted
     if (user?.status === USER_ACCOUNT_STATUS.restricted)
@@ -1382,7 +1402,7 @@ export class WalletService {
       throw new BadRequestException('Incorrect transfer fee');
     }
 
-    const amountPaid = body.amount + fee;
+    const amountPaid = body.amount ;
 
     if (toWallet) {
       return await this.bellBankIntraTransfer(
