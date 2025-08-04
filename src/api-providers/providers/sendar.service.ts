@@ -101,7 +101,7 @@ export class SendarSmsService {
 
   private getHeaders() {
     const apiKey = this.configService.get<string>('SENDAR_API_KEY');
-    console.log('SENDAR_API_KEY:', apiKey);
+    // console.log('SENDAR_API_KEY:', apiKey);
     if (!apiKey) {
       throw new Error('SENDAR_API_KEY not configured');
     }
