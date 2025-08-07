@@ -9,6 +9,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { HelperService } from './helper.service';
 import { log } from 'console';
 import { PushNotificationService } from 'src/notifications/notifications.service';
+import { getSMSAlertMessage } from 'src/utils';
 
 interface IndividualClientPayload {
   firstname: string;
@@ -404,6 +405,13 @@ export class BellAccountService {
 
       // Send alerts (email and SMS) - adapt from the example
       try {
+
+        const accountSNum = wallet.accountNumber;
+        const accountRNum = eventData?.debitAccountNumber;
+        const maskedSAccountNumber = `${accountSNum.substring(0, 2)}xxx..${accountSNum.substring(accountSNum.length - 4, accountSNum.length - 1)}x`;
+        const maskedRAccountNumber = `${accountRNum.substring(0, 2)}xxx..${accountRNum.substring(accountRNum.length - 4, accountRNum.length - 1)}x`;
+
+ 
         // Email logic similar to example
         const amount = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(eventData.amountReceived);
         const now = new Date();
@@ -429,8 +437,22 @@ export class BellAccountService {
         // SMS logic
         this.helperService.sendSms(
           wallet.user.phoneNumber,
-
-          `Credit alert: ${amount} from ${eventData.sourceAccountName}`,
+          getSMSAlertMessage(
+            amount,
+            wallet?.accountName,
+            eventData?.debitAccountName,
+            eventData?.paymentReference,
+            formattedDate,
+            newBalance,
+            'transfer',
+            {
+              isCredit: true,
+              description: eventData?.narration || '',
+            },
+            maskedSAccountNumber,
+            maskedRAccountNumber,
+            senderBankName.toUpperCase(),
+          ),
           'sendar',
         );
 

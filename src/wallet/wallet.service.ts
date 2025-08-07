@@ -900,7 +900,7 @@ export class WalletService {
                 maskedRAccountNumber,
                 fromWallet.bankName.toLowerCase(),
               ),
-            'sendar',
+              'sendar',
             );
           } catch (error) {
             console.log('Error sending credit transfer alert', error);
@@ -1200,14 +1200,16 @@ export class WalletService {
             user.phoneNumber,
             getSMSAlertMessage(
               amount,
-              transferData?.destinationAccountName,
+              transferData?.creditAccountName,
               fromWallet?.accountName,
               trxRef,
+              
               formattedDate,
               Number(fromWalletNewBalance.toFixed(2)),
               'transfer',
               {
                 isCredit: false,
+                description: body.description || '', // Add description here
               },
               maskedSAccountNumber,
               maskedRAccountNumber,

@@ -794,6 +794,8 @@ export class BillService {
           console.log('error while sending sms message', error);
         }
 
+       
+
         // Successful transaction
         return {
           message: 'Purchase successfully',

@@ -94,4 +94,29 @@ export class PushNotificationService {
 
     return this.sendNotificationToUser(userId, title, body, data);
   }
+
+
+  async sendBillPaymentNotification(
+    userId: string,
+    amount: number,
+    billType: string,
+    billReference: string,
+    status: 'successful' | 'failed' = 'successful'
+  ) {
+    const title = status === 'successful' ? 'Bill Payment Successful' : 'Bill Payment Failed';
+    const body = status === 'successful' 
+      ? `Your ${billType} payment of ₦${amount.toLocaleString()} was successful.`
+      : `Your ${billType} payment of ₦${amount.toLocaleString()} failed. Please try again.`;
+  
+    const data = {
+      type: 'bill_payment',
+      billType,
+      amount,
+      reference: billReference,
+      status,
+      timestamp: new Date().toISOString()
+    };
+  
+    return this.sendNotificationToUser(userId, title, body, data);
+  }
 }
