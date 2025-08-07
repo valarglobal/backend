@@ -72,7 +72,7 @@ const getTransferCreditSMSMessage = (
   description?: string,
 ): string => {
   const narration = description ? `#${description}` : '';
-  const descText = `Safe/NIP/Funds Received FRM ${sender}${narration}`;
+  const descText = `Valar/NIP/Funds Received FRM ${sender}${narration}`;
 
   return `CREDIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nSender: ${sender} ${senderAccountNumber}\nDesc: ${descText}\nBal: ${balance}\nDate: ${date}\nValarPayBeyondBanking`;
 };
@@ -131,7 +131,7 @@ export default function getCreditSMSMessage(
       );
     default:
       const narration = data.description ? `#${data.description}` : '';
-      const descText = `Safe/NIP/TRF@${data.sender}${narration}`;
+      const descText = `Valar/NIP/TRF@${data.sender}${narration}`;
       
       return `CREDIT\nAmt: NGN ${data.amount}\nAcct No: ${data.accountNumber}\nSender: ${data.sender} ${data.senderAccountNumber}\nDesc: ${descText}\nBal: ${data.balance}\nDate: ${data.date}\nValarPayBeyondBanking`;
   }

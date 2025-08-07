@@ -760,6 +760,8 @@ export class BillService {
 
         try {
           // send sms message
+          const network = this.getNetworkProvider((body as PayDto).phone);
+          console.log('network', network);
           const AccountNumber = lockWallet[0]?.accountNumber;
           const maskedAccountNumber = `${AccountNumber.substring(0, 2)}xxx..${AccountNumber.substring(AccountNumber.length - 4, AccountNumber.length - 1)}x`;
           const now = new Date();
@@ -781,12 +783,14 @@ export class BillService {
             bill_type,
             {
               isCredit: false,
+              network: network,
             },
             maskedAccountNumber,
             '',
             '',
             '',
             bill_type === BILL_TYPE.electricity ? res?.recharge_token : '',
+            
           );
 
           this.apiProvider.sendSms(user?.phoneNumber, smsMessage, 'sendar');

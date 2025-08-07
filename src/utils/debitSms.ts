@@ -11,7 +11,7 @@ const getTransferDebitSMSMessage = (
   description?: string,
 ): string => {
   const narration = description ? `#${description}` : '';
-  const descText = `Safe/NIP/TRF@${recipient}${narration}`;
+  const descText = `Valar/NIP/TRF@${recipient}${narration}`;
 
   return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${recipient} ${receipientAccountNumber}\nDesc: ${descText}\nBal: ${balance}\nDate: ${date}\nValarPayBeyondBanking`;
 };
@@ -27,7 +27,7 @@ const getAirtimeDebitSMSMessage = (
   network?: string
 ): string => {
 
-  const descText = `Safe/${network}/Airtime ${amount}/${phone}`;
+  const descText = `Valar/${network}/Airtime ${amount}/${phone}`;
 
   return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${phone}\nDesc: ${descText}\nBal: ${balance}\nDate: ${date}\nValarPayBeyondBanking`;
 };
@@ -71,7 +71,7 @@ const getDataDebitSMSMessage = (
 ): string => {
   
   // const descText = `Safe/${network}/Data ${phone}`;
-  const descText = `Safe/${network}/Data ${amount}/${phone}`;
+  const descText = `Valar/${network}/Data ${amount}/${phone}`;
   
   return `DEBIT\nAmt: NGN ${amount}\nAcct No: ${accountNumber}\nRecipient: ${phone}\nDesc: ${descText}\nBal: ${balance}\nDate: ${date}\nValarPayBeyondBanking`;
 };

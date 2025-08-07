@@ -1200,7 +1200,7 @@ export class WalletService {
             user.phoneNumber,
             getSMSAlertMessage(
               amount,
-              transferData?.creditAccountName,
+              transferData?.destinationAccountName,
               fromWallet?.accountName,
               trxRef,
               
