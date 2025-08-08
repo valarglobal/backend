@@ -394,9 +394,9 @@ export class BellAccountService {
             senderName: eventData.sourceAccountName,
             senderAccountNumber: eventData.sourceAccountNumber,
             senderBankName: eventData.sourceBankName,
-            beneficiaryName: wallet.accountName, // Adjust as needed
+            beneficiaryName: wallet.accountName, 
             beneficiaryAccountNumber: eventData.virtualAccount,
-            beneficiaryBankName: 'Bell MFB', // Adjust as needed
+            beneficiaryBankName: 'Bell MFB', 
             amount: Number(eventData.netAmount),
             amountPaid: Number(eventData.amountReceived),
           },
@@ -407,7 +407,7 @@ export class BellAccountService {
       try {
 
         const accountSNum = wallet.accountNumber;
-        const accountRNum = eventData?.debitAccountNumber;
+        const accountRNum = eventData?.sourceAccountNumber;
         const maskedSAccountNumber = `${accountSNum.substring(0, 2)}xxx..${accountSNum.substring(accountSNum.length - 4, accountSNum.length - 1)}x`;
         const maskedRAccountNumber = `${accountRNum.substring(0, 2)}xxx..${accountRNum.substring(accountRNum.length - 4, accountRNum.length - 1)}x`;
 
@@ -440,18 +440,18 @@ export class BellAccountService {
           getSMSAlertMessage(
             amount,
             wallet?.accountName,
-            eventData?.debitAccountName,
-            eventData?.paymentReference,
+            eventData.sourceAccountName,
+           eventData.reference,
             formattedDate,
             newBalance,
             'transfer',
             {
               isCredit: true,
-              description: eventData?.narration || '',
+              description: eventData?.remarks || '',
             },
             maskedSAccountNumber,
             maskedRAccountNumber,
-            senderBankName.toUpperCase(),
+            eventData.sourceBankName.toUpperCase(),
           ),
           'sendar',
         );
