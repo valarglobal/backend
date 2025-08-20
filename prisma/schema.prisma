@@ -79,6 +79,13 @@ enum USER_ROLE {
   ADMIN
 }
 
+enum NotificationCtegory {
+  TRANSACTION
+  SERVICES 
+  UPDATES
+  MESSAGES
+}
+
 enum BILL_TYPE {
   data
   airtime
@@ -173,6 +180,7 @@ model User {
 
   isBusinessRegistered Boolean     @default(false)
   pushTokens           PushToken[]
+  notifications        Notification[]
 
   //table name
   @@map("users")
@@ -197,6 +205,19 @@ model PushToken {
   @@unique([userId, deviceId])
   @@map("push_tokens")
 }
+
+model Notification {
+    id        String   @id @default(uuid()) @db.Uuid
+    title     String 
+    message  String 
+    category   NotificationCtegory
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    userId    String   @db.Uuid
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+}
+
 
 // Add this to your existing User model
 

@@ -1,15 +1,21 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Expo, ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
 import { PushTokenService } from './push-token.service';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { CreateNotificationDto } from './dto/notificationDto';
 
 @Injectable()
 export class PushNotificationService {
   private expo: Expo;
   private readonly logger = new Logger(PushNotificationService.name);
 
-  constructor(private pushTokenService: PushTokenService) {
+  constructor(private pushTokenService: PushTokenService,
+        private readonly prisma: PrismaService,
+  ) {
     this.expo = new Expo();
   }
+
+
 
   async sendNotificationToUser(
     userId: string,
@@ -59,6 +65,37 @@ export class PushNotificationService {
     }
   }
 
+
+
+
+  async AddNotifications ( body: CreateNotificationDto  , userId){
+
+    if(!body) {
+      throw new Error('Notification body is required');
+    }
+    const { title, message, category } = body;
+    if (!title || !message || !category) {
+      throw new Error('Title, message, and category are required fields');
+    }
+    try {
+      const notification = await this.prisma.notification.create({
+        data: {
+          title,
+          message,
+userId,
+          category,
+        },
+      });
+      return notification;
+    }
+    catch (error) {
+      this.logger.error('Error creating notification:', error);
+      throw error;
+    }
+
+
+  }
+
   async sendTransferCompletedNotification(
     userId: string,
     transferAmount: number,
@@ -73,6 +110,15 @@ export class PushNotificationService {
       amount: transferAmount,
       recipientName,
     };
+
+    await this.AddNotifications({
+      title,message:body,  category:"TRANSACTION"
+    },
+      
+    userId
+    )
+
+  
 
     return this.sendNotificationToUser(userId, title, body, data);
   }
@@ -91,6 +137,14 @@ export class PushNotificationService {
       amount,
       senderName,
     };
+
+
+    await this.AddNotifications({
+      title,message:body,  category:"TRANSACTION"
+    },
+      
+    userId
+    )
 
     return this.sendNotificationToUser(userId, title, body, data);
   }
@@ -116,6 +170,12 @@ export class PushNotificationService {
       status,
       timestamp: new Date().toISOString()
     };
+    await this.AddNotifications({
+      title,message:body,  category:"TRANSACTION"
+    },
+      
+    userId
+    )
   
     return this.sendNotificationToUser(userId, title, body, data);
   }

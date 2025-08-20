@@ -410,6 +410,9 @@ export class BellAccountService {
         const accountRNum = eventData?.sourceAccountNumber;
         const maskedSAccountNumber = `${accountSNum.substring(0, 2)}xxx..${accountSNum.substring(accountSNum.length - 4, accountSNum.length - 1)}x`;
         const maskedRAccountNumber = `${accountRNum.substring(0, 2)}xxx..${accountRNum.substring(accountRNum.length - 4, accountRNum.length - 1)}x`;
+        const cleanedNewBalance = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(newBalance)
+
+        
 
  
         // Email logic similar to example
@@ -443,7 +446,7 @@ export class BellAccountService {
             eventData.sourceAccountName,
            eventData.reference,
             formattedDate,
-            newBalance,
+           newBalance,
             'transfer',
             {
               isCredit: true,
@@ -466,6 +469,8 @@ export class BellAccountService {
           eventData.sourceAccountName,
             "",
           );
+
+          
         } catch (error) {
           console.log('Error sending transfer alert or push notification:', error);
         }
