@@ -167,6 +167,7 @@ export class AuthService {
       },
       include:{
         wallet: true,
+        notifications:true
       }
     });
 
@@ -283,6 +284,7 @@ export class AuthService {
         where: { biometricCredential: biometricKey },
         include:{
           wallet: true,
+          notifications:true
         }
        
       }) || null
@@ -341,6 +343,7 @@ export class AuthService {
       },
       include:{
         wallet: true,
+        notifications:true
       }
     });
 
@@ -526,6 +529,7 @@ export class AuthService {
       where: { email: body.email },
       include:{
         wallet: true,
+        notifications:true
       }
     }
     
@@ -622,6 +626,7 @@ export class AuthService {
       where: { email: body.email },
       include:{
         wallet: true,
+        notifications:true
       }
     });
 
