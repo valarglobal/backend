@@ -404,9 +404,28 @@ export class AuthService {
       data: { isEmailVerified: true },
     });
 
+    const currentTokenVersion = this.getCurrentVersion(user);
+    const jwtPayload = {
+      sub: user.id,
+      email: user.email,
+      version: currentTokenVersion,
+    };
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { tokenVersion: currentTokenVersion },
+    });
+
+    const accessToken = await this.jwtService.signAsync(jwtPayload, {
+      secret: this.configService.get('JWT_SECRET'),
+      expiresIn: '1h',
+    });
+
     return {
       message: 'Email verified successfully',
       statusCode: HttpStatus.OK,
+      accessToken: accessToken,
+      user: plainToInstance(UserEntity, user),
     };
   }
 
