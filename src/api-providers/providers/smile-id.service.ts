@@ -44,7 +44,7 @@ private generateSignature(timestamp:string) {
     throw new Error('Smile Identity API key or Partner ID is missing');
   }
 
-  console.log(api_key)
+
 
  
 
