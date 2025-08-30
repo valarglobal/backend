@@ -1012,7 +1012,11 @@ export class UserService {
 
     try {
       // get the image base64 without the meta data
-      res = await this.apiProvider.verifyNin(body.nin);
+      res = await this.apiProvider.verifyNinKyc(user.id, body);
+
+      console.log('bvnVerificationRes', res.ResultText);
+
+ 
     } catch (error) {
       console.log('error verifying nin', error);
       if (error?.response?.status === 400)
@@ -1020,36 +1024,12 @@ export class UserService {
       throw error;
     }
 
-    const firstName = user?.fullname.split(' ')[0].toLowerCase();
-    const lastName = user?.fullname.split(' ')[1].toLowerCase();
-    const data = res?.entity;
-
-    if (
-      data?.first_name.toLowerCase() !== firstName &&
-      data?.first_name.toLowerCase() !== lastName
-    ) {
-      throw new BadRequestException(
-        'The provided NIN does not match your first name or last name. Please verify your details and try again.',
-      );
+    const validResults = ["Partial Match", "Exact Match"];
+    if (!validResults.includes(res?.ResultText)) {
+      throw new BadRequestException('Failed to validate BVN');
     }
 
-    if (
-      data?.last_name.toLowerCase() !== firstName &&
-      data?.last_name.toLowerCase() !== lastName
-    ) {
-      throw new BadRequestException(
-        'The provided NIN does not match your first name or last name. Please verify your details and try again.',
-      );
-    }
-
-    // update the account tier level for VFD bank
-    // try {
-    //   const upgradeRes = await this.apiProvider.tier2Upgrade(user);
-    //   console.log('response from tier2 upgrade', upgradeRes);
-    // } catch (error) {
-    //   console.log('Failed to upgrade account', error);
-    //   throw error;
-    // }
+  
 
     // update the user and kyc level to tier 2
     await this.prisma.user.update({

@@ -505,4 +505,17 @@ export class ApiProviderService {
   ) {
     return this.smileIdService.verifyBasicKyc(userId, { ...payload, id_type: "BVN" });
   }
+
+
+  async verifyNinKyc(
+    userId: string,
+    payload: {
+      fullname?: string;
+     
+      nin: string;
+      gender?: string;
+    },
+  ) {
+    return this.smileIdService.verifyBasicKyc(userId, { ...payload, id_type: "NIN_V2" });
+  }
 }

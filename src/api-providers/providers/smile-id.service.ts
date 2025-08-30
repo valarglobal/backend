@@ -7,10 +7,14 @@ import { PrismaService } from 'src/prisma/prisma.service';
 export interface SmileIdBasicKycPayload {
   middle_name?: string;
   fullname?: string; 
-  bvn: string;
+  bvn?: string;
+  nin?: string;
   id_type: string;
   gender?: string;
 }
+
+
+
 
 @Injectable()
 export class SmileIdService {
@@ -141,4 +145,7 @@ let signature = hmac.digest().toString("base64");
       throw error;
     }
   }
+
+
+
 }
