@@ -115,7 +115,7 @@ let signature = hmac.digest().toString("base64");
         timestamp,
         country: user.currency.slice(0, 2),
         id_type: payload.id_type,
-        id_number: payload.bvn,
+        id_number: payload.bvn || payload.nin || '',
         first_name: fullnameToUse.split(' ')[0],
         middle_name: payload.middle_name || '',
         last_name: fullnameToUse.split(' ')[1],
