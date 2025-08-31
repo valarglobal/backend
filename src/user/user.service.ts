@@ -1033,7 +1033,7 @@ export class UserService {
   
 
     // update the user and kyc level to tier 2
-    await this.prisma.user.update({
+  const updatedUser =  await this.prisma.user.update({
       where: {
         id: user?.id,
       },
@@ -1050,7 +1050,7 @@ export class UserService {
     return {
       message: 'Tier2 kyc verification successful',
       statusCode: HttpStatus.OK,
-        user: plainToInstance(UserEntity, user),
+        user: plainToInstance(UserEntity, updatedUser),
    
     };
   }
