@@ -56,6 +56,7 @@ import { CreateBusinessAccountDto } from './dto/CreateBusinessAccountDto';
 import { KycTier3Dto } from './dto/KycTier3Dto';
 import { ValidatePhoneNumberDto } from './dto/validatePhoneNumberDto';
 import { VerifyPhoneNumberDto } from './dto/verifyPhoneNumberDto';
+import { UserEntity } from './serializer/user.serializer';
 
 @Injectable()
 export class UserService {
@@ -1049,6 +1050,8 @@ export class UserService {
     return {
       message: 'Tier2 kyc verification successful',
       statusCode: HttpStatus.OK,
+        user: plainToInstance(UserEntity, user),
+   
     };
   }
 
