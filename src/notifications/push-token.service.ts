@@ -8,14 +8,16 @@ import { User } from '@prisma/client';
 export class PushTokenService {
   constructor(private prisma: PrismaService) {}
 
-  async savePushToken(   user: User, createPushTokenDto: CreatePushTokenDto) {
+  async savePushToken(user: User, createPushTokenDto: CreatePushTokenDto) {
     const { token, deviceId, platform } = createPushTokenDto;
 
-    // Check if token already exists for this user
+    // Check if token exists for this user and device
     const existingToken = await this.prisma.pushToken.findFirst({
       where: {
-        userId:user.id,
-        token,
+        OR: [
+          { userId: user.id, token },
+          { userId: user.id, deviceId }
+        ],
       },
     });
 
@@ -24,6 +26,7 @@ export class PushTokenService {
       return this.prisma.pushToken.update({
         where: { id: existingToken.id },
         data: {
+          token, // Update with new token if different
           deviceId,
           platform,
           isActive: true,
@@ -32,10 +35,10 @@ export class PushTokenService {
       });
     }
 
-    // Create new token
+    // Create new token if none exists
     return this.prisma.pushToken.create({
       data: {
-      userId:user.id,
+        userId: user.id,
         token,
         deviceId,
         platform,

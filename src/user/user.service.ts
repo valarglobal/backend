@@ -111,6 +111,23 @@ export class UserService {
     };
   }
 
+  async getAllNotifications(user: User) {
+    const notifications = await this.prisma.notification.findMany({
+      where: {
+        userId: user.id
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    return {
+      message: 'Notifications retrieved successfully',
+      statusCode: HttpStatus.OK,
+      data: notifications
+    };
+  }
+
   async getStatisticsLineChart(user: User & { wallet?: Wallet }) {
     const wallet = user?.wallet;
 

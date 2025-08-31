@@ -56,6 +56,15 @@ export class UserController {
     );
   }
 
+
+  @Get('notifications')
+  @HttpCode(HttpStatus.OK)
+
+  async getNotifications(@Req() req: Request) {
+    const user = req['user'];
+    return this.userService.getAllNotifications(user);
+  }
+
   @Get('statistics-line-chart')
   async getStatisticsLineChart(@Req() req: Request) {
     const user = req['user'];
@@ -128,6 +137,8 @@ export class UserController {
     const user = req['user'];
     return this.userService.forgetPin(user);
   }
+
+
 
   @Post('reset-pin')
   async resetPin(@Body() body: ResetWalletPinDto, @Req() req: Request) {

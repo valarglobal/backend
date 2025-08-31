@@ -19,6 +19,9 @@ export class UserEntity {
   @Exclude()
   bvn: string;
 
+
+
+
   @Exclude()
   referredBy: string;
 
