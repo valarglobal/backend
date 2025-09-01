@@ -89,6 +89,21 @@
       text-decoration: none;
     }
 
+      .header {
+        font-size: 22px;
+        font-weight: bold;
+        color: #F76301; 
+      }
+ .otp {
+        font-size: 24px;
+        font-weight: bold;
+        color: white; /* Gold shade */
+        padding: 10px;
+        background: #F76301; 
+        border-radius: 5px;
+        display: inline-block;
+        margin-top: 10px;
+      }
     .footer {
       text-align: center;
       color: #999999;
@@ -110,15 +125,25 @@
           <br />
           <h2>Dear  {{firstName}},</h2>
           <p>
-       We received a request to reset your wallet PIN. To verify your identity
-        and proceed with resetting your PIN, please use the one-time password
-  
+       We received a request to reset your Transaction PIN. Use this OTP code below to reset your Transaction Pin.
           </p>
+          <p class='otp'>
+           <strong >OTP Code: {{otpCode}}</strong>
+ 
+    
+          </p>
+
           <p>
-           <strong class='otp'>OTP Code: {{otpCode}}</strong><br /><br />
-        This code is valid for 10 minutes. If you did not request this change,
+             If you did not request a transaction pin reset,
         please ignore this email or contact our support team immediately.
           </p>
+
+
+             <p class="header">
+           The Code will expire in 10 minutes
+          </p>
+
+
           <p>
             Please, if you did not initiate this action, contact our customer
             support at
