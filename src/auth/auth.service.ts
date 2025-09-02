@@ -219,19 +219,19 @@ export class AuthService {
     }
 
     let accessToken: string;
-    if (user.enabledTwoFa) {
-      try {
-        // send 2fa email
-        this.emailService.sendEmail({
-          to: user.email,
-          subject: 'Your Login Verification Code - Valarpay',
-          template: 'auth/2fa-email.hbs',
-          context: { firstName: user.fullname.split(' ')[0], otpCode },
-        });
-      } catch (error) {
-        console.log('error sending 2fa email', error);
-      }
-    } else {
+    // if (user.enabledTwoFa) {
+    //   try {
+    //     // send 2fa email
+    //     this.emailService.sendEmail({
+    //       to: user.email,
+    //       subject: 'Your Login Verification Code - Valarpay',
+    //       template: 'auth/2fa-email.hbs',
+    //       context: { firstName: user.fullname.split(' ')[0], otpCode },
+    //     });
+    //   } catch (error) {
+    //     console.log('error sending 2fa email', error);
+    //   }
+    // } else {
       const currentTokenVersion = this.getCurrentVersion(user);
       const jwtPayload = {
         sub: user.id,
@@ -248,7 +248,7 @@ export class AuthService {
         secret: this.configService.get('JWT_SECRET'),
         expiresIn: '1h',
       });
-    }
+    
 
     if (body.deviceName && body.ipAddress && body.operatingSystem) {
       try {
