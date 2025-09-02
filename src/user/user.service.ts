@@ -128,14 +128,21 @@ export class UserService {
     };
   }
 
-  async getStatisticsLineChart(user: User & { wallet?: Wallet }) {
-    const wallet = user?.wallet;
+  async getStatisticsLineChart(    user: User & { wallet?: Wallet[] },) {
+
+    const userWalletIds = user?.wallet?.map(w => w.id) || [];
+    
+    if (!userWalletIds.length) {
+      throw new NotFoundException('No wallets found for this user');
+    }
 
     const [creditTransactions, debitTransactions] = await Promise.all([
       // get all credit transaction for the last 7days
       this.prisma.transaction.findMany({
         where: {
-          walletId: wallet?.id,
+          walletId: {
+            in: userWalletIds 
+          },
           type: TRANSACTION_TYPE.CREDIT,
           status: TRANSACTION_STATUS.success,
           createdAt: {
@@ -147,7 +154,9 @@ export class UserService {
       // get all debit transactions for the last 7 days
       this.prisma.transaction.findMany({
         where: {
-          walletId: wallet?.id,
+          walletId: {
+            in: userWalletIds // Use IN operator to match any wallet ID
+          },
           type: TRANSACTION_TYPE.DEBIT,
           status: TRANSACTION_STATUS.success,
           createdAt: {
@@ -218,7 +227,7 @@ export class UserService {
   }
 
   async getStatisticsPieChart(
-    user: User & { wallet?: Wallet },
+    user: User & { wallet?: Wallet[] },
     sort: 'all' | 'today' | 'week' | 'month' | 'year',
   ) {
     let dateFilter: Date | undefined;
@@ -243,10 +252,19 @@ export class UserService {
         throw new BadRequestException('Invalid sort parameter');
     }
 
+    const userWalletIds = user?.wallet?.map(w => w.id) || [];
+    
+    if (!userWalletIds.length) {
+      throw new NotFoundException('No wallets found for this user');
+    }
+
+
     // Fetch transactions based on the filter
     const transactions = await this.prisma.transaction.findMany({
       where: {
-        walletId: user.wallet.id,
+        walletId: {
+          in: userWalletIds // Use IN operator to match any wallet ID
+        },
         status: TRANSACTION_STATUS.success,
         ...(dateFilter && {
           createdAt: {
