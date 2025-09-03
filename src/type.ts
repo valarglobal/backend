@@ -17,26 +17,7 @@ interface SafeHavenAccount {
 }
 
 
-export interface VerifyAccountResponseType{
 
-  data :{
-    "accountNumber": string
-    "accountName":string
-    "bankCode": string,
-    "bank":string,
-    "bvn": string,
-    "message": null,
-    "destinationInstitutionCode": string,
-    "kycLevel": string,
-    "sessionID": string,
-    "transactionId":string,
-    "bankVerificationNumber": string,
-    responseCode: string,
-    channelCode: string,
-    channel: string
-  }
- 
-}
 
 interface safeHavenCreateAccount extends SafeHavenAccount {
   companyRegistrationNumber?: string;

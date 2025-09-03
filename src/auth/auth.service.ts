@@ -160,7 +160,7 @@ export class AuthService {
 
 
 
-  async     login(body: LoginDto) {
+  async login(body: LoginDto) {
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [{ email: body.email }, { username: body.email }],
@@ -170,6 +170,11 @@ export class AuthService {
         notifications:true
       }
     });
+
+
+    if(user.status === "frozen"){
+      throw new BadRequestException('Your account has been frozen, contact support for more info');
+    }
 
     if (!user) {
       throw new BadRequestException('Invalid email or password');
@@ -219,19 +224,7 @@ export class AuthService {
     }
 
     let accessToken: string;
-    // if (user.enabledTwoFa) {
-    //   try {
-    //     // send 2fa email
-    //     this.emailService.sendEmail({
-    //       to: user.email,
-    //       subject: 'Your Login Verification Code - Valarpay',
-    //       template: 'auth/2fa-email.hbs',
-    //       context: { firstName: user.fullname.split(' ')[0], otpCode },
-    //     });
-    //   } catch (error) {
-    //     console.log('error sending 2fa email', error);
-    //   }
-    // } else {
+ 
       const currentTokenVersion = this.getCurrentVersion(user);
       const jwtPayload = {
         sub: user.id,
@@ -302,11 +295,14 @@ export class AuthService {
 
     console.log('user', user);
 
+
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-
+  if(user.status === "frozen"){
+      throw new BadRequestException('Your account has been frozen, contact support for more info');
+    }
 
     const currentTokenVersion = this.getCurrentVersion(user);
       const jwtPayload = {
@@ -636,6 +632,10 @@ export class AuthService {
 
     if (!user.isPasscodeSet) {
       throw new BadRequestException('Passcode not set');
+    }
+
+    if(user.status === "frozen"){
+      throw new BadRequestException('Your account has been frozen, contact support for more info');
     }
 
     const isPasscodeValid = await bcrypt.compare(body.passcode, user.passcode);

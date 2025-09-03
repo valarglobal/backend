@@ -44,9 +44,30 @@ import { EmailService } from 'src/email/email.service';
 import { getSMSAlertMessage } from 'src/utils';
 import { SmileIdBasicKycPayload } from 'src/api-providers/providers/smile-id.service';
 import { PushNotificationService } from 'src/notifications/notifications.service';
-import { VerifyAccountResponseType } from 'src/type';
+
 import { OmitType } from '@nestjs/swagger';
 
+
+interface VerifyAccountResponseType{
+
+  data :{
+    "accountNumber": string
+    "accountName":string
+    "bankCode": string,
+    "bank":string,
+    "bvn": string,
+    "message": null,
+    "destinationInstitutionCode": string,
+    "kycLevel": string,
+    "sessionID": string,
+    "transactionId":string,
+    "bankVerificationNumber": string,
+    responseCode: string,
+    channelCode: string,
+    channel: string
+  }
+ 
+}
 @Injectable()
 export class WalletService {
   constructor(
@@ -442,7 +463,7 @@ export class WalletService {
 
   async transferFund(body: TransferDto, user: User & { wallet?: any }) {
     // check if the account is restricted
-    if (user?.status === USER_ACCOUNT_STATUS.restricted)
+    if (user?.status === USER_ACCOUNT_STATUS.restricted || user?.status === USER_ACCOUNT_STATUS.frozen)
       throw new NotAcceptableException(
         'Your account has been restricted. Please contact support for assistance.',
       );
@@ -1025,6 +1046,8 @@ export class WalletService {
     let fromWalletNewBalance: number;
 
     try {
+
+
       // create a pending transaction
       await this.prisma.$transaction(
         async (trx) => {
@@ -1611,6 +1634,9 @@ export class WalletService {
     const uniqueId = uuidv4(); // Generate a unique UUID
     return `${prefix}${uniqueId}`;
   }
+
+
+
 
   async initiateBvnVerification(body: InitiateBvnVerificationDto, user: User) {
 let bvnVerificationRes: any ;

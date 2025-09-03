@@ -473,6 +473,10 @@ export class BillService {
       throw new BadRequestException('No authentication method set');
     }
 
+    if(user.status === "frozen"){
+      throw new BadRequestException('Your account has been frozen, contact support for more info');
+    }
+
     // Verify authentication method
     if (body.walletPin) {
       // Verify wallet PIN
