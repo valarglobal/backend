@@ -44,6 +44,8 @@ import { EmailService } from 'src/email/email.service';
 import { getSMSAlertMessage } from 'src/utils';
 import { SmileIdBasicKycPayload } from 'src/api-providers/providers/smile-id.service';
 import { PushNotificationService } from 'src/notifications/notifications.service';
+import { VerifyAccountResponseType } from 'src/type';
+import { OmitType } from '@nestjs/swagger';
 
 @Injectable()
 export class WalletService {
@@ -1429,10 +1431,10 @@ export class WalletService {
   }
 
   async verifyAccount(body: VerifyAccountDto) {
-    let data: any;
+    let data: VerifyAccountResponseType;
 
     try {
-      data = await this.apiProvider.verifyAccount(
+      data  = await this.apiProvider.verifyAccount(
         body.accountNumber,
         body.bankCode ,
         body.internal
@@ -1444,10 +1446,14 @@ export class WalletService {
       throw error;
     }
 
+    const resdata =data.data
+
+    const {bvn, bankVerificationNumber, ...transformedData} = resdata
+
     return {
       message: 'Account details retrieve successfully',
       statusCode: 200,
-      data: data?.data,
+      data: transformedData,
     };
   }
 
