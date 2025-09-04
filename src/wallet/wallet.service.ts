@@ -1688,7 +1688,7 @@ if (!isValid) {
 
 
 
-  
+
 
   async initiateBvnVerification(body: InitiateBvnVerificationDto, user: User) {
 let bvnVerificationRes: any ;
@@ -1703,9 +1703,9 @@ let bvnVerificationRes: any ;
 
     console.log('bvnVerificationRes', bvnVerificationRes);
     
-    const exactMatchOnly = ["FirstName", "LastName", "Gender", "Phone_Number"];
+    const exactMatchOnly = ["FirstName", "LastName", "Phone_Number"];
 const allowPartial = ["Names", "ID_Verification"];
-const skipKeys = ["DOB"]; 
+const skipKeys = ["DOB", "Gender" ]; 
 
 const actions = bvnVerificationRes?.Actions || {};
 const isValid = Object.entries(actions).every(([key, value]) => {
