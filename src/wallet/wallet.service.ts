@@ -1702,35 +1702,38 @@ let bvnVerificationRes: any ;
     }
 
     console.log('bvnVerificationRes', bvnVerificationRes);
+
+
+    console.log('bvnVerificationRes', bvnVerificationRes.ResultText); const validResults = ["NOTPartial Match", "NOTExact Match"]; if (!validResults.includes(bvnVerificationRes?.ResultText)) { throw new BadRequestException('Failed to validate BVN'); }
     
-    const exactMatchOnly = ["FirstName", "LastName", "Phone_Number"];
-const allowPartial = ["Names", "ID_Verification"];
-const skipKeys = ["DOB", "Gender" ]; 
+//     const exactMatchOnly = ["FirstName", "LastName", "Phone_Number"];
+// const allowPartial = ["Names", "ID_Verification"];
+// const skipKeys = ["DOB", "Gender" ]; 
 
-const actions = bvnVerificationRes?.Actions || {};
-const isValid = Object.entries(actions).every(([key, value]) => {
-  if (skipKeys.includes(key)) return true; // ignore DOB
-  if (value === "Not Provided" || value === "Not Applicable" || value === "") return true;
+// const actions = bvnVerificationRes?.Actions || {};
+// const isValid = Object.entries(actions).every(([key, value]) => {
+//   if (skipKeys.includes(key)) return true; // ignore DOB
+//   if (value === "Not Provided" || value === "Not Applicable" || value === "") return true;
 
-  if (exactMatchOnly.includes(key)) {
-    return value === "Exact Match";
-  }
+//   if (exactMatchOnly.includes(key)) {
+//     return value === "Exact Match";
+//   }
 
-  if (allowPartial.includes(key)) {
-    return value === "Exact Match" || value === "Partial Match";
-  }
+//   if (allowPartial.includes(key)) {
+//     return value === "Exact Match" || value === "Partial Match";
+//   }
 
-  if (key === "Verify_ID_Number") {
-    return value === "Verified";
-  }
+//   if (key === "Verify_ID_Number") {
+//     return value === "Verified";
+//   }
 
   
-  return value === "Exact Match";
-});
+//   return value === "Exact Match";
+// });
 
-if (!isValid) {
-  throw new BadRequestException('Failed to validate BVN - some fields did not match required rules');
-}
+// if (!isValid) {
+//   throw new BadRequestException('Failed to validate BVN - some fields did not match required rules');
+// }
 
 let newWallet: any;
 
