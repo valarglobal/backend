@@ -9,6 +9,8 @@ export interface SmileIdBasicKycPayload {
   fullname?: string; 
   bvn?: string;
   nin?: string;
+  phoneNumber?: string;
+  dateOfBirth?: string;
   id_type: string;
   gender?: string;
 }
@@ -124,6 +126,73 @@ let signature = hmac.digest().toString("base64");
         phone_number: user.phoneNumber || '',
         partner_params: {
           user_id: user.id,
+        },
+       
+      };
+
+      // console.log(typeof(sign))
+
+      // console.log('requestBody', requestBody);
+
+      // console.log('baseUrl', baseUrl);
+
+      const response = await axios.post(baseUrl, requestBody, {
+        headers: this.getHeaders(),
+      });
+
+      // console.log('response', response.data);
+      return response.data;
+    } catch (error) {
+      console.log('Error verifying basic KYC with Smile ID', error);
+      throw error;
+    }
+  }
+
+
+
+  async verifyBasicTestKyc( payload: SmileIdBasicKycPayload) {
+   
+
+   
+
+    try {
+      const timestamp = new Date().toISOString();
+      const partnerId = this.configService.get<string>('SMILE_ID_PARTNER_ID');
+      const isProduction =
+        this.configService.get<string>('NODE_ENV') === 'production';
+
+        const sign = this.generateSignature(timestamp)
+
+       
+
+      // const baseUrl = isProduction
+      //   ? 'https://api.smileidentity.com/v2/verify'
+      //   : 'https://testapi.smileidentity.com/v2/verify';
+
+      const baseUrl = 'https://api.smileidentity.com/v2/verify';
+
+      
+      const fullnameToUse =  payload.fullname 
+    
+      
+
+      const requestBody = {
+        source_sdk: 'rest_api',
+        source_sdk_version: '1.0.0',
+        partner_id: partnerId,
+        signature: sign,
+        timestamp,
+        country: "NG",
+        id_type: payload.id_type,
+        id_number: payload.bvn || payload.nin || '',
+        first_name: fullnameToUse.split(' ')[0],
+        middle_name: payload.middle_name || '',
+        last_name: fullnameToUse.split(' ')[1],
+        dob: payload.dateOfBirth || '',
+        gender: payload.gender || 'M',
+        phone_number: payload.phoneNumber || '',
+        partner_params: {
+          user_id: "",
         },
        
       };

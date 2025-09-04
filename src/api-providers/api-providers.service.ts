@@ -507,6 +507,18 @@ export class ApiProviderService {
   }
 
 
+  async verifyBasicTestKyc(
+    payload: {
+      fullname?: string;
+     
+      bvn: string;
+      gender?: string;
+    },
+  ) {
+    return this.smileIdService.verifyBasicTestKyc( { ...payload, id_type: "BVN" });
+  }
+
+
   async verifyNinKyc(
     userId: string,
     payload: {

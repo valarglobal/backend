@@ -46,6 +46,7 @@ import { SmileIdBasicKycPayload } from 'src/api-providers/providers/smile-id.ser
 import { PushNotificationService } from 'src/notifications/notifications.service';
 
 import { OmitType } from '@nestjs/swagger';
+import { VerifyTestBvn } from './dto/VerifyTestBvnDto';
 
 
 interface VerifyAccountResponseType{
@@ -1353,7 +1354,7 @@ export class WalletService {
         }
 
     // check if the account is restricted
-    if (user?.status === USER_ACCOUNT_STATUS.restricted)
+    if (user?.status === USER_ACCOUNT_STATUS.restricted || USER_ACCOUNT_STATUS.frozen)
       throw new NotAcceptableException(
         'Your account has been restricted. Please contact support for assistance.',
       );
@@ -1636,7 +1637,58 @@ export class WalletService {
   }
 
 
+  async verifyTestBvn (body:VerifyTestBvn) {
+    let bvnVerificationRes: any;
+    try {
+      bvnVerificationRes = await this.apiProvider.verifyBasicTestKyc( body);
+    } catch (error) {
+      throw new BadRequestException('Failed to validate BVN');
+    }
+    
+    console.log('bvnVerificationRes', bvnVerificationRes);
+    
+    const exactMatchOnly = ["FirstName", "LastName", "Gender", "Phone_Number"];
+const allowPartial = ["Names", "ID_Verification"];
+const skipKeys = ["DOB"]; // ignore DOB completely
 
+const actions = bvnVerificationRes?.Actions || {};
+const isValid = Object.entries(actions).every(([key, value]) => {
+  if (skipKeys.includes(key)) return true; // ignore DOB
+  if (value === "Not Provided" || value === "Not Applicable" || value === "") return true;
+
+  if (exactMatchOnly.includes(key)) {
+    return value === "Exact Match";
+  }
+
+  if (allowPartial.includes(key)) {
+    return value === "Exact Match" || value === "Partial Match";
+  }
+
+  if (key === "Verify_ID_Number") {
+    return value === "Verified";
+  }
+
+  // For other keys, default to requiring Exact Match
+  return value === "Exact Match";
+});
+
+if (!isValid) {
+  throw new BadRequestException('Failed to validate BVN - some fields did not match required rules');
+}
+
+    return {
+      message: 'Bvn verification successful',
+      statusCode: 200,
+      data: bvnVerificationRes
+    };
+  }
+
+
+
+
+
+
+  
 
   async initiateBvnVerification(body: InitiateBvnVerificationDto, user: User) {
 let bvnVerificationRes: any ;
@@ -1649,11 +1701,35 @@ let bvnVerificationRes: any ;
       throw new BadRequestException('Failed to validate BVN');
     }
 
-    console.log('bvnVerificationRes', bvnVerificationRes.ResultText);
+    console.log('bvnVerificationRes', bvnVerificationRes);
+    
+    const exactMatchOnly = ["FirstName", "LastName", "Gender", "Phone_Number"];
+const allowPartial = ["Names", "ID_Verification"];
+const skipKeys = ["DOB"]; 
 
-    const validResults = ["NOTPartial Match", "NOTExact Match"];
-if (!validResults.includes(bvnVerificationRes?.ResultText)) {
-  throw new BadRequestException('Failed to validate BVN');
+const actions = bvnVerificationRes?.Actions || {};
+const isValid = Object.entries(actions).every(([key, value]) => {
+  if (skipKeys.includes(key)) return true; // ignore DOB
+  if (value === "Not Provided" || value === "Not Applicable" || value === "") return true;
+
+  if (exactMatchOnly.includes(key)) {
+    return value === "Exact Match";
+  }
+
+  if (allowPartial.includes(key)) {
+    return value === "Exact Match" || value === "Partial Match";
+  }
+
+  if (key === "Verify_ID_Number") {
+    return value === "Verified";
+  }
+
+  
+  return value === "Exact Match";
+});
+
+if (!isValid) {
+  throw new BadRequestException('Failed to validate BVN - some fields did not match required rules');
 }
 
 let newWallet: any;

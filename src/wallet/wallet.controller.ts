@@ -23,6 +23,7 @@ import { InitiateBvnVerificationDto } from './dto/InitiateBvnVerificationDto';
 import { ValidateBvnVerificationDto } from './dto/ValidateBvnVerificationDto';
 import { SmileIdBasicKycPayload } from 'src/api-providers/providers/smile-id.service';
 import { DecodeQrCodeDto } from './dto/DecodeQrCodeDto';
+import { VerifyTestBvn } from './dto/VerifyTestBvnDto';
 
 @Controller('v1/wallet')
 export class WalletController {
@@ -98,6 +99,15 @@ export class WalletController {
   ) {
     const user = req['user'];
     return this.walletService.initiateBvnVerification(body,user);
+  }
+
+
+  @Post('initiate-test-bvn')
+  async initiateTestBvn(
+    @Body() body: VerifyTestBvn,
+    @Req() req: Request,
+  ) {
+    return this.walletService.verifyTestBvn(body);
   }
 
   @Post('validate-bvn-verification')
