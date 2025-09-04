@@ -48,26 +48,23 @@ import { PushNotificationService } from 'src/notifications/notifications.service
 import { OmitType } from '@nestjs/swagger';
 import { VerifyTestBvn } from './dto/VerifyTestBvnDto';
 
-
-interface VerifyAccountResponseType{
-
-  data :{
-    "accountNumber": string
-    "accountName":string
-    "bankCode": string,
-    "bank":string,
-    "bvn": string,
-    "message": null,
-    "destinationInstitutionCode": string,
-    "kycLevel": string,
-    "sessionID": string,
-    "transactionId":string,
-    "bankVerificationNumber": string,
-    responseCode: string,
-    channelCode: string,
-    channel: string
-  }
- 
+interface VerifyAccountResponseType {
+  data: {
+    accountNumber: string;
+    accountName: string;
+    bankCode: string;
+    bank: string;
+    bvn: string;
+    message: null;
+    destinationInstitutionCode: string;
+    kycLevel: string;
+    sessionID: string;
+    transactionId: string;
+    bankVerificationNumber: string;
+    responseCode: string;
+    channelCode: string;
+    channel: string;
+  };
 }
 @Injectable()
 export class WalletService {
@@ -75,8 +72,8 @@ export class WalletService {
     private readonly prisma: PrismaService,
     private readonly apiProvider: ApiProviderService,
     private readonly emailService: EmailService,
-     private readonly pushNotificationService: PushNotificationService,
-  ) { }
+    private readonly pushNotificationService: PushNotificationService,
+  ) {}
 
   async getAllBanks() {
     const banks: any = await this.apiProvider.getAllBanks();
@@ -87,7 +84,6 @@ export class WalletService {
       data: banks?.data,
     };
   }
-
 
   async getTransactions(
     page: number,
@@ -100,18 +96,17 @@ export class WalletService {
   ) {
     let response: any;
 
-    
     if (!user?.wallet?.length) {
       throw new NotFoundException('No wallets found for this user');
     }
-    
+
     // Get all wallet IDs for the user
-    const userWalletIds = user.wallet.map(w => w.id);
-    
+    const userWalletIds = user.wallet.map((w) => w.id);
+
     // Build where clause with required walletId and optional filters
     const whereClause: Prisma.TransactionWhereInput = {
       walletId: {
-        in: userWalletIds // Use IN operator to match any of user's wallet IDs
+        in: userWalletIds, // Use IN operator to match any of user's wallet IDs
       },
       ...(type && { type }),
       ...(category && { category }),
@@ -129,8 +124,8 @@ export class WalletService {
           where: whereClause,
           orderBy: { createdAt: 'desc' },
           include: {
-            wallet: true // Include wallet details if needed
-          }
+            wallet: true, // Include wallet details if needed
+          },
         }),
         this.prisma.transaction.count({
           where: whereClause,
@@ -142,15 +137,15 @@ export class WalletService {
         totalCount,
         totalPages: Math.ceil(totalCount / limit),
         currentPage: page,
-        itemsPerPage: limit
+        itemsPerPage: limit,
       };
     } else {
       const transactions = await this.prisma.transaction.findMany({
         where: whereClause,
         orderBy: { createdAt: 'desc' },
         include: {
-          wallet: true // Include wallet details if needed
-        }
+          wallet: true, // Include wallet details if needed
+        },
       });
 
       response = {
@@ -166,7 +161,6 @@ export class WalletService {
       ...response,
     };
   }
-
 
   // async getTransactions(
   //   page: number,
@@ -463,8 +457,10 @@ export class WalletService {
   }
 
   async transferFund(body: TransferDto, user: User & { wallet?: any }) {
-
-    if (user?.status === USER_ACCOUNT_STATUS.restricted || user?.status === USER_ACCOUNT_STATUS.frozen)
+    if (
+      user?.status === USER_ACCOUNT_STATUS.restricted ||
+      user?.status === USER_ACCOUNT_STATUS.frozen
+    )
       throw new NotAcceptableException(
         'Your account has been restricted. Please contact support for assistance.',
       );
@@ -930,7 +926,7 @@ export class WalletService {
             console.log('Error sending credit transfer alert', error);
           }
 
-                 try {
+          try {
             // Send push notification to sender (debit notification)
             await this.pushNotificationService.sendTransferCompletedNotification(
               user.id,
@@ -945,10 +941,10 @@ export class WalletService {
               where: {
                 wallet: {
                   some: {
-                    id: toWallet.id
-                  }
-                }
-              }
+                    id: toWallet.id,
+                  },
+                },
+              },
             });
 
             if (recipientUser) {
@@ -963,10 +959,7 @@ export class WalletService {
             console.log('Error sending push notifications:', error);
             // Don't throw error - push notification failure shouldn't fail the transfer
           }
-         
         });
-
-        
 
         return {
           message: 'Transfer initiated successfully',
@@ -1040,15 +1033,13 @@ export class WalletService {
     const BASE_DELAY = CONCURRENT_BASE_DELAY;
 
     const trxRef = this.generateTransactionRef('DEBIT');
-    const senderName = user.wallet.accountName
+    const senderName = user.wallet.accountName;
     let beneficiaryBankName: any;
     let transferData: any;
     let pendingTransactionId: string;
     let fromWalletNewBalance: number;
 
     try {
-
-
       // create a pending transaction
       await this.prisma.$transaction(
         async (trx) => {
@@ -1076,7 +1067,7 @@ export class WalletService {
               type: TRANSACTION_TYPE.DEBIT,
               currency: body.currency,
               status: TRANSACTION_STATUS.pending,
-    
+
               description: body.description,
               previousBalance: fromWallet?.balance,
               currentBalance: fromWalletNewBalance,
@@ -1085,7 +1076,8 @@ export class WalletService {
                 senderAccountNumber: fromWallet?.accountNumber,
                 senderBankName: fromWallet?.bankName,
                 beneficiaryName: transferData?.destinationAccountName,
-                beneficiaryAccountNumber: transferData?.destinationAccountNumber,
+                beneficiaryAccountNumber:
+                  transferData?.destinationAccountNumber,
                 beneficiaryBankName,
                 amount: body.amount,
                 amountPaid,
@@ -1110,10 +1102,9 @@ export class WalletService {
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
-
         const res = await this.apiProvider.transferBellBankFund(
           { ...body, amount: amountPaid },
-        fromWallet.accountName,
+          fromWallet.accountName,
           trxRef,
         );
 
@@ -1163,7 +1154,7 @@ export class WalletService {
               beneficiaryBankName,
               amount: body.amount,
               amountPaid,
-              fee:transferData?.charge,
+              fee: transferData?.charge,
             },
           },
         });
@@ -1190,7 +1181,7 @@ export class WalletService {
             hour12: true,
             timeZone: 'Africa/Lagos',
           });
-          console.log("from wallet" ,fromWallet.accountName)
+          console.log('from wallet', fromWallet.accountName);
 
           this.emailService.sendEmail({
             to: user.email,
@@ -1199,7 +1190,7 @@ export class WalletService {
             context: {
               amount,
               accountName: fromWallet.accountName,
-  
+
               // accountName: fromWallet.accountName
               //   .split('/')[1]
               //   .split(' ')
@@ -1229,7 +1220,7 @@ export class WalletService {
               transferData?.destinationAccountName,
               fromWallet?.accountName,
               trxRef,
-              
+
               formattedDate,
               Number(fromWalletNewBalance.toFixed(2)),
               'transfer',
@@ -1247,19 +1238,22 @@ export class WalletService {
           console.log('Error sending transfer alert', error);
         }
 
-          try {
-        // ... existing email and SMS alert logic ...
+        try {
+          // ... existing email and SMS alert logic ...
 
-        // Send push notification for successful inter-bank transfer
-        await this.pushNotificationService.sendTransferCompletedNotification(
-          user.id,
-          body.amount,
-          transferData?.destinationAccountName,
-          trxRef,
-        );
-      } catch (error) {
-        console.log('Error sending transfer alert or push notification:', error);
-      }
+          // Send push notification for successful inter-bank transfer
+          await this.pushNotificationService.sendTransferCompletedNotification(
+            user.id,
+            body.amount,
+            transferData?.destinationAccountName,
+            trxRef,
+          );
+        } catch (error) {
+          console.log(
+            'Error sending transfer alert or push notification:',
+            error,
+          );
+        }
 
         return {
           message: 'Transfer initiated successfully',
@@ -1334,27 +1328,32 @@ export class WalletService {
     // if (!isMatched) throw new BadRequestException('Incorect pin');
 
     if (!user?.isWalletPinSet && !user?.biometricCredential) {
-          throw new BadRequestException('No authentication method set');
-        }
-    
-        // Verify authentication method
-        if (body.walletPin) {
-          // Verify wallet PIN
-          const isMatched = await bcrypt.compare(body.walletPin, user?.walletPin);
-          if (!isMatched) {
-            throw new BadRequestException('Incorrect PIN');
-          }
-        } else if (body.biometricKey) {
-          // Verify biometric key
-          if (body.biometricKey !== user.biometricCredential) {
-            throw new BadRequestException('Invalid biometric authentication');
-          }
-        } else {
-          throw new BadRequestException('Either wallet PIN or biometric key is required');
-        }
+      throw new BadRequestException('No authentication method set');
+    }
+
+    // Verify authentication method
+    if (body.walletPin) {
+      // Verify wallet PIN
+      const isMatched = await bcrypt.compare(body.walletPin, user?.walletPin);
+      if (!isMatched) {
+        throw new BadRequestException('Incorrect PIN');
+      }
+    } else if (body.biometricKey) {
+      // Verify biometric key
+      if (body.biometricKey !== user.biometricCredential) {
+        throw new BadRequestException('Invalid biometric authentication');
+      }
+    } else {
+      throw new BadRequestException(
+        'Either wallet PIN or biometric key is required',
+      );
+    }
 
     // check if the account is restricted
-    if (user?.status === USER_ACCOUNT_STATUS.restricted || USER_ACCOUNT_STATUS.frozen)
+    if (
+      user?.status === USER_ACCOUNT_STATUS.restricted ||
+      USER_ACCOUNT_STATUS.frozen
+    )
       throw new NotAcceptableException(
         'Your account has been restricted. Please contact support for assistance.',
       );
@@ -1430,7 +1429,7 @@ export class WalletService {
       throw new BadRequestException('Incorrect transfer fee');
     }
 
-    const amountPaid = body.amount ;
+    const amountPaid = body.amount;
 
     if (toWallet) {
       return await this.bellBankIntraTransfer(
@@ -1458,10 +1457,10 @@ export class WalletService {
     let data: VerifyAccountResponseType;
 
     try {
-      data  = await this.apiProvider.verifyAccount(
+      data = await this.apiProvider.verifyAccount(
         body.accountNumber,
-        body.bankCode ,
-        body.internal
+        body.bankCode,
+        body.internal,
       );
     } catch (error) {
       if (error?.response?.status === 400)
@@ -1470,9 +1469,9 @@ export class WalletService {
       throw error;
     }
 
-    const resdata =data.data
+    const resdata = data.data;
 
-    const {bvn, bankVerificationNumber, ...transformedData} = resdata
+    const { bvn, bankVerificationNumber, ...transformedData } = resdata;
 
     return {
       message: 'Account details retrieve successfully',
@@ -1493,7 +1492,7 @@ export class WalletService {
       data = await this.apiProvider.verifyAccount(
         wallet?.accountNumber,
         defaultBankCode,
-        true
+        true,
       );
     } catch (error) {
       console.log('error verifying account number', error);
@@ -1636,106 +1635,104 @@ export class WalletService {
     return `${prefix}${uniqueId}`;
   }
 
-
-  async verifyTestBvn (body:VerifyTestBvn) {
+  async verifyTestBvn(body: VerifyTestBvn) {
     let bvnVerificationRes: any;
     try {
-      bvnVerificationRes = await this.apiProvider.verifyBasicTestKyc( body);
+      bvnVerificationRes = await this.apiProvider.verifyBasicTestKyc(body);
     } catch (error) {
       throw new BadRequestException('Failed to validate BVN');
     }
-    
+
     console.log('bvnVerificationRes', bvnVerificationRes);
-    
-    const exactMatchOnly = ["FirstName", "LastName", "Gender", "Phone_Number"];
-const allowPartial = ["Names", "ID_Verification"];
-const skipKeys = ["DOB"]; // ignore DOB completely
 
-const actions = bvnVerificationRes?.Actions || {};
-const isValid = Object.entries(actions).every(([key, value]) => {
-  if (skipKeys.includes(key)) return true; // ignore DOB
-  if (value === "Not Provided" || value === "Not Applicable" || value === "") return true;
+    const exactMatchOnly = ['FirstName', 'LastName', 'Gender', 'Phone_Number'];
+    const allowPartial = ['Names', 'ID_Verification'];
+    const skipKeys = ['DOB']; // ignore DOB completely
 
-  if (exactMatchOnly.includes(key)) {
-    return value === "Exact Match";
-  }
+    const actions = bvnVerificationRes?.Actions || {};
+    const isValid = Object.entries(actions).every(([key, value]) => {
+      if (skipKeys.includes(key)) return true; // ignore DOB
+      if (
+        value === 'Not Provided' ||
+        value === 'Not Applicable' ||
+        value === ''
+      )
+        return true;
 
-  if (allowPartial.includes(key)) {
-    return value === "Exact Match" || value === "Partial Match";
-  }
+      if (exactMatchOnly.includes(key)) {
+        return value === 'Exact Match';
+      }
 
-  if (key === "Verify_ID_Number") {
-    return value === "Verified";
-  }
+      if (allowPartial.includes(key)) {
+        return value === 'Exact Match' || value === 'Partial Match';
+      }
 
-  // For other keys, default to requiring Exact Match
-  return value === "Exact Match";
-});
+      if (key === 'Verify_ID_Number') {
+        return value === 'Verified';
+      }
 
-if (!isValid) {
-  throw new BadRequestException('Failed to validate BVN - some fields did not match required rules');
-}
+      // For other keys, default to requiring Exact Match
+      return value === 'Exact Match';
+    });
+
+    if (!isValid) {
+      throw new BadRequestException(
+        'Failed to validate BVN - some fields did not match required rules',
+      );
+    }
 
     return {
       message: 'Bvn verification successful',
       statusCode: 200,
-      data: bvnVerificationRes
+      data: bvnVerificationRes,
     };
   }
 
-
-
-
-
-
-
-
   async initiateBvnVerification(body: InitiateBvnVerificationDto, user: User) {
-let bvnVerificationRes: any ;
+    let bvnVerificationRes: any;
     try {
-
-      
       bvnVerificationRes = await this.apiProvider.verifyBasicKyc(user.id, body);
-      
     } catch (error) {
       throw new BadRequestException('Failed to validate BVN');
     }
 
     console.log('bvnVerificationRes', bvnVerificationRes);
 
+    console.log('bvnVerificationRes', bvnVerificationRes.ResultText);
+    const validResults = ['Partial Match', 'Exact Match'];
+    if (!validResults.includes(bvnVerificationRes?.ResultText)) {
+      throw new BadRequestException('Failed to validate BVN');
+    }
 
-    console.log('bvnVerificationRes', bvnVerificationRes.ResultText); const validResults = ["NOTPartial Match", "NOTExact Match"]; if (!validResults.includes(bvnVerificationRes?.ResultText)) { throw new BadRequestException('Failed to validate BVN'); }
-    
-//     const exactMatchOnly = ["FirstName", "LastName", "Phone_Number"];
-// const allowPartial = ["Names", "ID_Verification"];
-// const skipKeys = ["DOB", "Gender" ]; 
+    //     const exactMatchOnly = ["FirstName", "LastName", "Phone_Number"];
+    // const allowPartial = ["Names", "ID_Verification"];
+    // const skipKeys = ["DOB", "Gender" ];
 
-// const actions = bvnVerificationRes?.Actions || {};
-// const isValid = Object.entries(actions).every(([key, value]) => {
-//   if (skipKeys.includes(key)) return true; // ignore DOB
-//   if (value === "Not Provided" || value === "Not Applicable" || value === "") return true;
+    // const actions = bvnVerificationRes?.Actions || {};
+    // const isValid = Object.entries(actions).every(([key, value]) => {
+    //   if (skipKeys.includes(key)) return true; // ignore DOB
+    //   if (value === "Not Provided" || value === "Not Applicable" || value === "") return true;
 
-//   if (exactMatchOnly.includes(key)) {
-//     return value === "Exact Match";
-//   }
+    //   if (exactMatchOnly.includes(key)) {
+    //     return value === "Exact Match";
+    //   }
 
-//   if (allowPartial.includes(key)) {
-//     return value === "Exact Match" || value === "Partial Match";
-//   }
+    //   if (allowPartial.includes(key)) {
+    //     return value === "Exact Match" || value === "Partial Match";
+    //   }
 
-//   if (key === "Verify_ID_Number") {
-//     return value === "Verified";
-//   }
+    //   if (key === "Verify_ID_Number") {
+    //     return value === "Verified";
+    //   }
 
-  
-//   return value === "Exact Match";
-// });
+    //   return value === "Exact Match";
+    // });
 
-// if (!isValid) {
-//   throw new BadRequestException('Failed to validate BVN - some fields did not match required rules');
-// }
+    // if (!isValid) {
+    //   throw new BadRequestException('Failed to validate BVN - some fields did not match required rules');
+    // }
 
-let newWallet: any;
+    let newWallet: any;
 
     let res: any;
     try {
@@ -1743,10 +1740,9 @@ let newWallet: any;
         body.bvn,
         {
           ...user,
-          phoneNumber:
-           user.phoneNumber
+          phoneNumber: user.phoneNumber,
         },
-      
+
         user?.isBusiness ? 'business' : 'personal',
       );
     } catch (error) {
@@ -1785,8 +1781,6 @@ let newWallet: any;
       statusCode: 201,
       data: newWallet,
     };
-  
-
 
     // const response =
     //   await this.apiProvider.initiateSafeHavenBvnVerification(body);
