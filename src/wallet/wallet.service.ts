@@ -462,7 +462,7 @@ export class WalletService {
   }
 
   async transferFund(body: TransferDto, user: User & { wallet?: any }) {
-    // check if the account is restricted
+
     if (user?.status === USER_ACCOUNT_STATUS.restricted || user?.status === USER_ACCOUNT_STATUS.frozen)
       throw new NotAcceptableException(
         'Your account has been restricted. Please contact support for assistance.',
@@ -1651,7 +1651,7 @@ let bvnVerificationRes: any ;
 
     console.log('bvnVerificationRes', bvnVerificationRes.ResultText);
 
-    const validResults = ["Partial Match", "Exact Match"];
+    const validResults = ["NOTPartial Match", "NOTExact Match"];
 if (!validResults.includes(bvnVerificationRes?.ResultText)) {
   throw new BadRequestException('Failed to validate BVN');
 }
