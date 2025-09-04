@@ -32,7 +32,7 @@ export class SendarSmsService {
 
     const payload = {
       wallet_type : "Transactional",
-      sender_id: "ValarPay",
+      sender_id: "NattyPay",
       contact: [{
         number: Number(data.phoneNumber),
         body: data.message,
