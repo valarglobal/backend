@@ -27,15 +27,12 @@ import { VerifyTestBvn } from './dto/VerifyTestBvnDto';
 
 @Controller('v1/wallet')
 export class WalletController {
-  constructor(private readonly walletService: WalletService) { }
+  constructor(private readonly walletService: WalletService) {}
 
   @Get('get-banks')
   async getAllBanks(@Param('currency') currency: string) {
     return this.walletService.getAllBanks();
   }
-
-
-  
 
   @Get('get-transfer-fee')
   async getTransferDetails(
@@ -78,6 +75,8 @@ export class WalletController {
   @HttpCode(HttpStatus.OK)
   async initiateTransfer(@Body() body: TransferDto, @Req() req: Request) {
     const user = req['user'];
+    console.log('here');
+
     return this.walletService.transferBellBankFund(body, user);
   }
 
@@ -98,15 +97,11 @@ export class WalletController {
     @Req() req: Request,
   ) {
     const user = req['user'];
-    return this.walletService.initiateBvnVerification(body,user);
+    return this.walletService.initiateBvnVerification(body, user);
   }
 
-
   @Post('initiate-test-bvn')
-  async initiateTestBvn(
-    @Body() body: VerifyTestBvn,
-    @Req() req: Request,
-  ) {
+  async initiateTestBvn(@Body() body: VerifyTestBvn, @Req() req: Request) {
     return this.walletService.verifyTestBvn(body);
   }
 
