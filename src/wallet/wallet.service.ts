@@ -1350,13 +1350,14 @@ export class WalletService {
     }
 
     // check if the account is restricted
-    // if (
-    //   user?.status === USER_ACCOUNT_STATUS.restricted ||
-    //   USER_ACCOUNT_STATUS.frozen
-    // )
-    //   throw new NotAcceptableException(
-    //     'Your account has been restricted. Please contact support for assistance.',
-    //   );
+    if (
+      user?.status === USER_ACCOUNT_STATUS.restricted ||
+      user?.status === USER_ACCOUNT_STATUS.frozen
+    ) {
+      throw new NotAcceptableException(
+        'Your account has been restricted. Please contact support for assistance.',
+      );
+    }
 
     // check for minimum amount to transfer
     // this.checkforMinimumAndMaximumAmount(body.currency, body.amount, user);
