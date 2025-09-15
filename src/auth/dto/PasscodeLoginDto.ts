@@ -1,32 +1,39 @@
-import { Optional } from '@nestjs/common';
 import {
   IsEmail,
   IsNotEmpty,
   IsString,
-  Length,
+  IsOptional,
+  MaxLength,
   Matches,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class PasscodeLoginDto {
-  @IsEmail()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Email is required' })
+  @IsEmail({}, { message: 'Email must be valid' })
+  @MaxLength(255, { message: 'Email must not exceed 255 characters' })
+  @Transform(({ value }) => value?.trim().toLowerCase())
   email: string;
 
-  @IsNotEmpty()
-  @IsString()
-  @Length(6, 6, { message: 'Passcode must be exactly 6 digits' })
-  @Matches(/^[0-9]+$/, { message: 'Passcode must contain only numbers' })
+  @IsNotEmpty({ message: 'Passcode is required' })
+  @Matches(/^\d{6}$/, { message: 'Passcode must be exactly 6 digits' })
   passcode: string;
 
+  @IsOptional()
   @IsString()
-  @Optional()
-  ipAddress: string;
+  @MaxLength(45, { message: 'IP address too long' }) // IPv6 max length
+  @Transform(({ value }) => value?.trim())
+  ipAddress?: string;
 
+  @IsOptional()
   @IsString()
-  @Optional()
-  deviceName: string;
+  @MaxLength(100)
+  @Transform(({ value }) => value?.trim())
+  deviceName?: string;
 
+  @IsOptional()
   @IsString()
-  @Optional()
-  operatingSystem: string;
+  @MaxLength(100)
+  @Transform(({ value }) => value?.trim())
+  operatingSystem?: string;
 }

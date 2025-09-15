@@ -19,6 +19,11 @@ import { REFERRAL_BONUS_PRICE } from 'src/constants';
 
 @Injectable()
 export class AuthService {
+  private readonly BCRYPT_SALT_ROUNDS = 12;
+  private readonly OTP_EXPIRES_IN = '10m';
+  private readonly ACCESS_TOKEN_EXPIRES_IN = '1h';
+  private readonly JWT_SECRET_KEY = 'JWT_SECRET'; // config key
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
@@ -26,17 +31,22 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
+  /* =====================
+     Public methods
+     ===================== */
+
   async register(body: RegisterDto | RegisterBusinessDto) {
     const otpCode = this.generateOtp(6);
 
     return this.prisma
       .$transaction(async (tx) => {
-        const existingUser: User[] = await tx.$queryRaw`
-            SELECT * FROM "users" 
-            WHERE "email" = ${body.email} OR "username" = ${body.username} 
-            FOR UPDATE
-            LIMIT 1
-          `;
+        // Lock check for existing user (email or username)
+        const existingUser = (await tx.$queryRaw`
+        SELECT * FROM "users"
+        WHERE "email" = ${body.email} OR "username" = ${body.username}
+        FOR UPDATE
+        LIMIT 1
+      `) as User[];
 
         if (existingUser.length > 0) {
           if (existingUser[0].email === body.email) {
@@ -45,9 +55,10 @@ export class AuthService {
           throw new BadRequestException('Username is already taken');
         }
 
-        const password = body.password;
-
-        const hashedPassword = await bcrypt.hash(password, 12);
+        const hashedPassword = await bcrypt.hash(
+          String(body.password),
+          this.BCRYPT_SALT_ROUNDS,
+        );
 
         const payload: any = {
           fullname: body.fullname,
@@ -57,7 +68,7 @@ export class AuthService {
           referralCode: await this.generateReferralCode(),
           dateOfBirth: body.dateOfBirth,
           accountType: body.accountType,
-          isBusiness: body.accountType === ACCOUNT_TYPE.BUSINESS ? true : false,
+          isBusiness: body.accountType === ACCOUNT_TYPE.BUSINESS,
           currency: body.currency ?? 'NGN',
           companyRegistrationNumber:
             body.accountType === ACCOUNT_TYPE.BUSINESS
@@ -65,21 +76,18 @@ export class AuthService {
               : '',
         };
 
+        // handle referral code (if provided)
         if (body.referralCode) {
-          const referredUser = await this.prisma.user.findFirst({
-            where: {
-              referralCode: body.referralCode,
-            },
-            include: {
-              wallet: true,
-            },
+          const referredUser = await tx.user.findFirst({
+            where: { referralCode: body.referralCode },
+            include: { wallet: true },
           });
 
           if (!referredUser)
             throw new BadRequestException('Invalid referral code');
 
           const referredUserWallet = referredUser.wallet.find(
-            (wallet) => wallet.currency === body.currency,
+            (w) => w.currency === body.currency,
           );
 
           if (!referredUserWallet) {
@@ -87,65 +95,45 @@ export class AuthService {
           }
 
           await tx.wallet.update({
-            where: {
-              id: referredUserWallet.id,
-            },
+            where: { id: referredUserWallet.id },
             data: {
               balance: referredUserWallet.balance + REFERRAL_BONUS_PRICE,
             },
           });
 
-          payload.referredBy = referredUser?.id;
+          payload.referredBy = referredUser.id;
         }
 
+        // create user
         const newUser = await tx.user.create({
           data: payload,
         });
 
-        const otpToken = await this.jwtService.signAsync(
-          {
-            sub: newUser?.id,
-            otpCode: otpCode,
-          },
-          {
-            secret: this.configService.get('JWT_SECRET'),
-            expiresIn: '10m',
-          },
-        );
-
+        // sign otp token and save
+        const otpToken = await this.createOtpToken(newUser.id, otpCode);
         await tx.user.update({
           where: { id: newUser.id },
-          data: {
-            otpToken,
-          },
+          data: { otpToken },
         });
 
+        // return created user (then block will send mails)
         return newUser;
       })
       .then((savedUser) => {
-        try {
-          // send welcome email
-          this.emailService.sendEmail({
-            to: savedUser.email,
-            subject: 'Welcome to valarpay',
-            template: 'auth/welcome-email.hbs',
-            context: { firstName: savedUser.fullname.split(' ')[0] },
-          });
-        } catch (error) {
-          console.log('Error sending welcome email', error);
-        }
+        // best-effort send emails (do not fail registration if email sending fails)
+        this.sendEmailSafe({
+          to: savedUser.email,
+          subject: 'Welcome to valarpay',
+          template: 'auth/welcome-email.hbs',
+          context: { firstName: savedUser.fullname.split(' ')[0] },
+        });
 
-        try {
-          //send verification email
-          this.emailService.sendEmail({
-            to: savedUser.email,
-            subject: 'Verify Your Email Address',
-            template: 'auth/verify-email.hbs',
-            context: { otpCode: otpCode, year: new Date().getFullYear() },
-          });
-        } catch (error) {
-          console.log('Error sending verification email', error);
-        }
+        this.sendEmailSafe({
+          to: savedUser.email,
+          subject: 'Verify Your Email Address',
+          template: 'auth/verify-email.hbs',
+          context: { otpCode: otpCode, year: new Date().getFullYear() },
+        });
 
         return {
           message: 'User created successfully',
@@ -157,35 +145,17 @@ export class AuthService {
 
   async login(body: LoginDto) {
     const user = await this.prisma.user.findFirst({
-      where: {
-        OR: [{ email: body.email }, { username: body.email }],
-      },
+      where: { OR: [{ email: body.email }, { username: body.email }] },
     });
 
-    if (!user) {
+    if (!user) throw new BadRequestException('Invalid email or password');
+
+    const isPasswordValid = await bcrypt.compare(body.password, user.password);
+    if (!isPasswordValid)
       throw new BadRequestException('Invalid email or password');
-    }
-
-    const password = body.password;
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordValid) {
-      throw new BadRequestException('Invalid email or password');
-    }
 
     const otpCode = this.generateOtp(6);
-
-    const otpToken = await this.jwtService.signAsync(
-      {
-        sub: user?.id,
-        otpCode,
-      },
-      {
-        secret: this.configService.get('JWT_SECRET'),
-        expiresIn: '10m',
-      },
-    );
+    const otpToken = await this.createOtpToken(user.id, otpCode);
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -193,37 +163,29 @@ export class AuthService {
     });
 
     if (!user.isEmailVerified) {
-      // send user a mail to verify thier email
-      try {
-        //send verification email
-        this.emailService.sendEmail({
-          to: user.email,
-          subject: 'Verify Your Email Address',
-          template: 'auth/verify-email.hbs',
-          context: { otpCode, year: new Date().getFullYear() },
-        });
-      } catch (error) {
-        console.log('Error sending verification email', error);
-      }
+      // send verification email
+      this.sendEmailSafe({
+        to: user.email,
+        subject: 'Verify Your Email Address',
+        template: 'auth/verify-email.hbs',
+        context: { otpCode, year: new Date().getFullYear() },
+      });
 
       throw new BadRequestException('Email not verified');
     }
 
-    let accessToken: string;
+    let accessToken: string | undefined;
     if (user.enabledTwoFa) {
-      try {
-        // send 2fa email
-        this.emailService.sendEmail({
-          to: user.email,
-          subject: 'Your Login Verification Code - Valarpay',
-          template: 'auth/2fa-email.hbs',
-          context: { firstName: user.fullname.split(' ')[0], otpCode },
-        });
-      } catch (error) {
-        console.log('error sending 2fa email', error);
-      }
+      // send 2FA code
+      this.sendEmailSafe({
+        to: user.email,
+        subject: 'Your Login Verification Code - Valarpay',
+        template: 'auth/2fa-email.hbs',
+        context: { firstName: user.fullname.split(' ')[0], otpCode },
+      });
     } else {
-      const currentTokenVersion = this.getCurrentVersion(user);
+      // create access token & update token version
+      const currentTokenVersion = this.incrementTokenVersion(user);
       const jwtPayload = {
         sub: user.id,
         email: user.email,
@@ -236,29 +198,26 @@ export class AuthService {
       });
 
       accessToken = await this.jwtService.signAsync(jwtPayload, {
-        secret: this.configService.get('JWT_SECRET'),
-        expiresIn: '1h',
+        secret: this.configService.get(this.JWT_SECRET_KEY),
+        expiresIn: this.ACCESS_TOKEN_EXPIRES_IN,
       });
     }
 
+    // optional login notification
     if (body.deviceName && body.ipAddress && body.operatingSystem) {
-      try {
-        this.emailService.sendEmail({
-          to: user.email,
-          subject: 'New Login Detected on Your Valarpay Account',
-          template: 'auth/login-email.hbs',
-          context: {
-            fullname: user?.fullname,
-            formattedDateTime: this.formatDateTime(new Date()),
-            deviceName: body.deviceName,
-            ipAddress: body.ipAddress,
-            operatingSystem: body.operatingSystem,
-            year: new Date().getFullYear(),
-          },
-        });
-      } catch (error) {
-        console.log('error sending login email', error);
-      }
+      this.sendEmailSafe({
+        to: user.email,
+        subject: 'New Login Detected on Your Valarpay Account',
+        template: 'auth/login-email.hbs',
+        context: {
+          fullname: user.fullname,
+          formattedDateTime: this.formatDateTime(new Date()),
+          deviceName: body.deviceName,
+          ipAddress: body.ipAddress,
+          operatingSystem: body.operatingSystem,
+          year: new Date().getFullYear(),
+        },
+      });
     }
 
     return {
@@ -273,29 +232,13 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: { email: body.email },
     });
-
-    if (!user) {
-      throw new BadRequestException('User with email does not exist');
-    }
-
-    if (user.isEmailVerified) {
+    if (!user) throw new BadRequestException('User with email does not exist');
+    if (user.isEmailVerified)
       throw new BadRequestException('Email already verified');
-    }
 
-    let payload: any;
-    try {
-      payload = await this.jwtService.verifyAsync(user?.otpToken, {
-        secret: this.configService.get('JWT_SECRET'),
-      });
-    } catch (error) {
-      throw new BadRequestException(
-        'Verification code has expired. Please request a new one.',
-      );
-    }
-
-    if (payload?.otpCode !== body.otpCode) {
+    const payload = await this.verifyOtpTokenSafe(user?.otpToken);
+    if (payload?.otpCode !== body.otpCode)
       throw new BadRequestException('Invalid verification code');
-    }
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -312,39 +255,22 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: { email: body.email },
     });
+    if (!user) throw new BadRequestException('User with email does not exist');
 
-    if (!user) {
-      throw new BadRequestException('User with email does not exist');
-    }
     const otpCode = this.generateOtp(6);
-
-    const otpToken = await this.jwtService.signAsync(
-      {
-        sub: user?.id,
-        otpCode: otpCode,
-      },
-      {
-        secret: this.configService.get('JWT_SECRET'),
-        expiresIn: '10m',
-      },
-    );
+    const otpToken = await this.createOtpToken(user.id, otpCode);
 
     await this.prisma.user.update({
       where: { id: user.id },
       data: { otpToken },
     });
 
-    try {
-      //send verification email
-      this.emailService.sendEmail({
-        to: user.email,
-        subject: 'Verify your email',
-        template: 'auth/verify-email.hbs',
-        context: { otpCode: otpCode, year: new Date().getFullYear() },
-      });
-    } catch (error) {
-      console.log('error sending verification email', error);
-    }
+    this.sendEmailSafe({
+      to: user.email,
+      subject: 'Verify your email',
+      template: 'auth/verify-email.hbs',
+      context: { otpCode: otpCode, year: new Date().getFullYear() },
+    });
 
     return {
       message: 'Email verification code resent',
@@ -356,73 +282,37 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: { email: body.email },
     });
-
-    if (!user) {
-      throw new BadRequestException('User with email does not exist');
-    }
+    if (!user) throw new BadRequestException('User with email does not exist');
 
     const twoFaCode = this.generateOtp(6);
-
-    const otpToken = await this.jwtService.signAsync(
-      {
-        sub: user?.id,
-        otpCode: twoFaCode,
-      },
-      {
-        secret: this.configService.get('JWT_SECRET'),
-        expiresIn: '10m',
-      },
-    );
+    const otpToken = await this.createOtpToken(user.id, twoFaCode);
 
     await this.prisma.user.update({
       where: { id: user.id },
       data: { otpToken },
     });
 
-    try {
-      // send 2fa email
-      this.emailService.sendEmail({
-        to: user.email,
-        subject: 'Your Login Verification Code - Valarpay',
-        template: 'auth/2fa-email.hbs',
-        context: {
-          firstName: user.fullname.split(' ')[0],
-          otpCode: twoFaCode,
-        },
-      });
-    } catch (error) {
-      console.log('error sending 2fa email', error);
-    }
+    this.sendEmailSafe({
+      to: user.email,
+      subject: 'Your Login Verification Code - Valarpay',
+      template: 'auth/2fa-email.hbs',
+      context: { firstName: user.fullname.split(' ')[0], otpCode: twoFaCode },
+    });
 
-    return {
-      message: '2FA email resent',
-      statusCode: HttpStatus.OK,
-    };
+    return { message: '2FA email resent', statusCode: HttpStatus.OK };
   }
 
   async verifyTwoFaCode(body: VerifyEmailDto) {
     const user = await this.prisma.user.findFirst({
       where: { email: body.email },
     });
+    if (!user) throw new BadRequestException('User with email does not exist');
 
-    if (!user) {
-      throw new BadRequestException('User with email does not exist');
-    }
-
-    let payload: any;
-    try {
-      payload = await this.jwtService.verifyAsync(user?.otpToken, {
-        secret: this.configService.get('JWT_SECRET'),
-      });
-    } catch (error) {
-      throw new BadRequestException('Expired OTP code');
-    }
-
-    if (payload?.otpCode !== body.otpCode) {
+    const payload = await this.verifyOtpTokenSafe(user?.otpToken);
+    if (payload?.otpCode !== body.otpCode)
       throw new BadRequestException('Invalid OTP code');
-    }
 
-    const currentTokenVersion = this.getCurrentVersion(user);
+    const currentTokenVersion = this.incrementTokenVersion(user);
     const jwtPayload = {
       sub: user.id,
       email: user.email,
@@ -435,8 +325,8 @@ export class AuthService {
     });
 
     const accessToken = await this.jwtService.signAsync(jwtPayload, {
-      secret: this.configService.get('JWT_SECRET'),
-      expiresIn: '1h',
+      secret: this.configService.get(this.JWT_SECRET_KEY),
+      expiresIn: this.ACCESS_TOKEN_EXPIRES_IN,
     });
 
     return {
@@ -448,7 +338,10 @@ export class AuthService {
   }
 
   async createPasscode(body: PasscodeDto, user: User) {
-    const hashedPasscode = await bcrypt.hash(body.passcode, 12);
+    const hashedPasscode = await bcrypt.hash(
+      String(body.passcode),
+      this.BCRYPT_SALT_ROUNDS,
+    );
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -465,22 +358,13 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: { email: body.email },
     });
-
-    if (!user) {
-      throw new BadRequestException('User with email does not exist');
-    }
-
-    if (!user.isPasscodeSet) {
-      throw new BadRequestException('Passcode not set');
-    }
+    if (!user) throw new BadRequestException('User with email does not exist');
+    if (!user.isPasscodeSet) throw new BadRequestException('Passcode not set');
 
     const isPasscodeValid = await bcrypt.compare(body.passcode, user.passcode);
+    if (!isPasscodeValid) throw new BadRequestException('Invalid passcode');
 
-    if (!isPasscodeValid) {
-      throw new BadRequestException('Invalid passcode');
-    }
-
-    const currentTokenVersion = this.getCurrentVersion(user);
+    const currentTokenVersion = this.incrementTokenVersion(user);
     const jwtPayload = {
       sub: user.id,
       email: user.email,
@@ -493,28 +377,24 @@ export class AuthService {
     });
 
     const accessToken = await this.jwtService.signAsync(jwtPayload, {
-      secret: this.configService.get('JWT_SECRET'),
-      expiresIn: '1h',
+      secret: this.configService.get(this.JWT_SECRET_KEY),
+      expiresIn: this.ACCESS_TOKEN_EXPIRES_IN,
     });
 
     if (body.deviceName && body.ipAddress && body.operatingSystem) {
-      try {
-        this.emailService.sendEmail({
-          to: user.email,
-          subject: 'New Login Detected on Your Valarpay Account',
-          template: 'auth/login-email.hbs',
-          context: {
-            fullname: user?.fullname,
-            formattedDateTime: this.formatDateTime(new Date()),
-            deviceName: body.deviceName,
-            ipAddress: body.ipAddress,
-            operatingSystem: body.operatingSystem,
-            year: new Date().getFullYear(),
-          },
-        });
-      } catch (error) {
-        console.log('error sending login email', error);
-      }
+      this.sendEmailSafe({
+        to: user.email,
+        subject: 'New Login Detected on Your Valarpay Account',
+        template: 'auth/login-email.hbs',
+        context: {
+          fullname: user.fullname,
+          formattedDateTime: this.formatDateTime(new Date()),
+          deviceName: body.deviceName,
+          ipAddress: body.ipAddress,
+          operatingSystem: body.operatingSystem,
+          year: new Date().getFullYear(),
+        },
+      });
     }
 
     return {
@@ -529,94 +409,57 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: { email: body.email },
     });
+    if (!user) throw new BadRequestException('User with email does not exist');
 
-    if (!user) {
-      throw new BadRequestException('User with email does not exist');
-    }
-
-    if (body.password !== body.confirmPassword) {
+    if (body.password !== body.confirmPassword)
       throw new BadRequestException('Passwords do not match');
-    }
 
-    const hashedPassword = await bcrypt.hash(body.password, 12);
+    const hashedPassword = await bcrypt.hash(
+      String(body.password),
+      this.BCRYPT_SALT_ROUNDS,
+    );
 
     await this.prisma.user.update({
       where: { id: user.id },
       data: { password: hashedPassword },
     });
 
-    return {
-      message: 'Password reset successful',
-      statusCode: HttpStatus.OK,
-    };
+    return { message: 'Password reset successful', statusCode: HttpStatus.OK };
   }
 
   async forgotPassword(body: EmailDto) {
     const user = await this.prisma.user.findFirst({
       where: { email: body.email },
     });
-
-    if (!user) {
-      throw new BadRequestException('User with email does not exist');
-    }
+    if (!user) throw new BadRequestException('User with email does not exist');
 
     const otpCode = this.generateOtp(4);
-
-    const otpToken = await this.jwtService.signAsync(
-      {
-        sub: user.id,
-        otpCode: otpCode,
-      },
-      {
-        secret: this.configService.get('JWT_SECRET'),
-        expiresIn: '10m',
-      },
-    );
+    const otpToken = await this.createOtpToken(user.id, otpCode);
 
     await this.prisma.user.update({
       where: { id: user.id },
       data: { otpToken },
     });
 
-    try {
-      // send reset email
-      this.emailService.sendEmail({
-        to: user.email,
-        subject: 'Reset Your Password - Valarpay',
-        template: 'auth/forgot-password-email.hbs',
-        context: { otpCode: otpCode },
-      });
-    } catch (error) {
-      console.log('error sending forgot password email', error);
-    }
+    this.sendEmailSafe({
+      to: user.email,
+      subject: 'Reset Your Password - Valarpay',
+      template: 'auth/forgot-password-email.hbs',
+      context: { otpCode },
+    });
 
-    return {
-      message: 'Password reset email sent',
-      statusCode: HttpStatus.OK,
-    };
+    return { message: 'Password reset email sent', statusCode: HttpStatus.OK };
   }
 
   async verifyForgotPassword(body: VerifyEmailDto) {
     const user = await this.prisma.user.findFirst({
       where: { email: body.email },
     });
+    if (!user) throw new BadRequestException('User with email does not exist');
 
-    if (!user) {
-      throw new BadRequestException('User with email does not exist');
-    }
-
-    let payload: any;
-    try {
-      payload = await this.jwtService.verifyAsync(user?.otpToken, {
-        secret: this.configService.get('JWT_SECRET'),
-      });
-    } catch (error) {
-      throw new BadRequestException('Expired OTP code');
-    }
-
-    if (payload?.otpCode !== body.otpCode) {
+    const payload = await this.verifyOtpTokenSafe(user?.otpToken);
+    if (payload?.otpCode !== body.otpCode)
       throw new BadRequestException('Invalid OTP code');
-    }
 
     return {
       message: 'OTP code verified successfully',
@@ -624,48 +467,37 @@ export class AuthService {
     };
   }
 
+  /* =====================
+     Private helpers
+     ===================== */
+
   private generateOtp(length: number): string {
-    const digits = '0123456789'; // Only digits for OTP
+    const digits = '0123456789';
     let otp = '';
-
     for (let i = 0; i < length; i++) {
-      const randomIndex = Math.floor(Math.random() * digits.length);
-      otp += digits[randomIndex];
+      otp += digits[Math.floor(Math.random() * digits.length)];
     }
-
     return otp;
   }
 
-  private async generateReferralCode() {
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    let newReferralCode = '';
-    for (let i = 0; i < 6; i++) {
-      const randomIndex = Math.floor(Math.random() * characters.length);
-      newReferralCode += characters[randomIndex];
+  private async generateReferralCode(): Promise<string> {
+    const CHAR = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    while (true) {
+      let code = '';
+      for (let i = 0; i < 6; i++)
+        code += CHAR[Math.floor(Math.random() * CHAR.length)];
+
+      const isTaken = await this.prisma.user.findFirst({
+        where: { referralCode: code },
+      });
+      if (!isTaken) return code;
+      // else loop again
     }
-
-    const isTaken = await this.prisma.user.findFirst({
-      where: {
-        referralCode: newReferralCode,
-      },
-    });
-
-    if (isTaken) return await this.generateReferralCode();
-
-    return newReferralCode;
   }
 
-  private getCurrentVersion(user: User) {
+  private incrementTokenVersion(user: User): number {
     const MAX_INT = 2147483647;
-
-    let currentTokenVersion: number;
-    if (user.tokenVersion >= MAX_INT) {
-      currentTokenVersion = 0;
-    } else {
-      currentTokenVersion = user.tokenVersion + 1;
-    }
-
-    return currentTokenVersion;
+    return user.tokenVersion >= MAX_INT ? 0 : user.tokenVersion + 1;
   }
 
   private formatDateTime(date: Date): string {
@@ -678,7 +510,47 @@ export class AuthService {
       minute: '2-digit',
       hour12: true,
     };
-
     return date.toLocaleString('en-US', options);
+  }
+
+  private async createOtpToken(
+    userId: string,
+    otpCode: string,
+  ): Promise<string> {
+    return this.jwtService.signAsync(
+      { sub: userId, otpCode },
+      {
+        secret: this.configService.get(this.JWT_SECRET_KEY),
+        expiresIn: this.OTP_EXPIRES_IN,
+      },
+    );
+  }
+
+  private async verifyOtpTokenSafe(token?: string): Promise<any> {
+    try {
+      return await this.jwtService.verifyAsync(token ?? '', {
+        secret: this.configService.get(this.JWT_SECRET_KEY),
+      });
+    } catch (err) {
+      throw new BadRequestException('Expired OTP code');
+    }
+  }
+
+  private sendEmailSafe(mailOptions: {
+    to: string;
+    subject: string;
+    template: string;
+    context?: any;
+  }) {
+    try {
+      this.emailService.sendEmail(mailOptions as any);
+    } catch (error) {
+      // Log and swallow so we don't break main flow
+      console.log(`Error sending email to ${mailOptions.to}`, error);
+    }
+  }
+
+  private async getUserByEmail(email: string): Promise<User | null> {
+    return this.prisma.user.findFirst({ where: { email } });
   }
 }

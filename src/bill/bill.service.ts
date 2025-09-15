@@ -50,6 +50,9 @@ export class BillService {
     private readonly apiProvider: ApiProviderService,
   ) {}
 
+  /* -------------------------
+     Public plan / lookup APIs
+     ------------------------- */
   async getAirtimeNetworkProviders() {
     const networks = await this.prisma.airtimePlan.findMany();
 
@@ -61,27 +64,10 @@ export class BillService {
   }
 
   async getDataPlanByNetwork(network: string) {
-    let networkQuerykey: NETWORK;
-
-    switch (network.toLocaleLowerCase()) {
-      case 'mtn':
-        networkQuerykey = NETWORK.mtn;
-        break;
-      case 'airtel':
-        networkQuerykey = NETWORK.airtel;
-        break;
-      case 'etisalat':
-        networkQuerykey = NETWORK.etisalat;
-        break;
-      case 'glo':
-        networkQuerykey = NETWORK.glo;
-        break;
-    }
+    const networkQuerykey = this.resolveNetworkFromString(network);
 
     const dataPlan = await this.prisma.dataPlan.findMany({
-      where: {
-        network: networkQuerykey,
-      },
+      where: { network: networkQuerykey },
     });
 
     return {
@@ -96,17 +82,13 @@ export class BillService {
       throw new BadRequestException('Invalid phone number');
 
     const network = this.getNetworkProvider(String(phone));
-
     if (!network) throw new NotFoundException('Enter a valid phone number');
 
     const countryISOCode =
       this.apiProvider.getCountryCodeFromCurrency(currency);
 
     const airtimePlan = await this.prisma.airtimePlan.findFirst({
-      where: {
-        network,
-        countryISOCode,
-      },
+      where: { network, countryISOCode },
     });
 
     let res: any;
@@ -120,10 +102,7 @@ export class BillService {
     return {
       message: 'Airtime plan retrieve successfully',
       statusCode: HttpStatus.OK,
-      data: {
-        network,
-        plan: res,
-      },
+      data: { network, plan: res },
     };
   }
 
@@ -178,30 +157,21 @@ export class BillService {
       this.apiProvider.getCountryCodeFromCurrency(currency);
 
     const dataPlan = await this.prisma.dataPlan.findMany({
-      where: {
-        network,
-        countryISOCode,
-      },
+      where: { network, countryISOCode },
     });
 
     return {
       message: 'Data plan retrieve successfully',
       statusCode: HttpStatus.OK,
-      data: {
-        network,
-        plan: dataPlan,
-      },
+      data: { network, plan: dataPlan },
     };
   }
 
   async getCablePlan(currency: string) {
     const countryISOCode =
       this.apiProvider.getCountryCodeFromCurrency(currency);
-
     const cablePlan = await this.prisma.cablePlan.findMany({
-      where: {
-        countryISOCode,
-      },
+      where: { countryISOCode },
     });
 
     return {
@@ -214,11 +184,8 @@ export class BillService {
   async getElectricityPlan(currency: string) {
     const countryISOCode =
       this.apiProvider.getCountryCodeFromCurrency(currency);
-
     const electricityPlan = await this.prisma.electricityPlan.findMany({
-      where: {
-        countryISOCode,
-      },
+      where: { countryISOCode },
     });
 
     return {
@@ -231,11 +198,8 @@ export class BillService {
   async getInternetPlan(currency: string) {
     const countryISOCode =
       this.apiProvider.getCountryCodeFromCurrency(currency);
-
     const internetPlan = await this.prisma.internetservicePlan.findMany({
-      where: {
-        countryISOCode,
-      },
+      where: { countryISOCode },
     });
 
     return {
@@ -248,11 +212,8 @@ export class BillService {
   async getTransportPlan(currency: string) {
     const countryISOCode =
       this.apiProvider.getCountryCodeFromCurrency(currency);
-
     const transportPlan = await this.prisma.transportPlan.findMany({
-      where: {
-        countryISOCode,
-      },
+      where: { countryISOCode },
     });
 
     return {
@@ -265,11 +226,8 @@ export class BillService {
   async getSchoolfeePlan(currency: string) {
     const countryISOCode =
       this.apiProvider.getCountryCodeFromCurrency(currency);
-
     const schoolfeePlan = await this.prisma.schoolfeePlan.findMany({
-      where: {
-        countryISOCode,
-      },
+      where: { countryISOCode },
     });
 
     return {
@@ -280,47 +238,41 @@ export class BillService {
   }
 
   async getVariation(operatorId: number) {
-    let res: any;
     try {
-      res = await this.apiProvider.getOperator(operatorId);
+      const res = await this.apiProvider.getOperator(operatorId);
+      return {
+        message: 'Variation retrieve successfully',
+        statusCode: HttpStatus.OK,
+        data: res,
+      };
     } catch (error) {
       console.log('error getting variation amount', error);
       throw error;
     }
-
-    return {
-      message: 'Variation retrieve successfully',
-      statusCode: HttpStatus.OK,
-      data: res,
-    };
   }
 
   async getGiftCardCategories() {
-    let res: any;
     try {
-      res = this.apiProvider.getGiftCardCategories();
+      const res = await this.apiProvider.getGiftCardCategories();
+      return res;
     } catch (error) {
       console.log('error while getting categories', error);
       throw error;
     }
-
-    return res;
   }
 
   async redeemGiftCard(transactionId: number) {
-    let res: any;
     try {
-      res = await this.apiProvider.redeemGiftCard(transactionId);
+      const res = await this.apiProvider.redeemGiftCard(transactionId);
+      return {
+        message: 'Giftcard redeemed successfully',
+        statusCode: HttpStatus.OK,
+        data: res,
+      };
     } catch (error) {
       console.log('error while redeeming giftcard', error);
       throw error;
     }
-
-    return {
-      message: 'Giftcard redeemed successfully',
-      statusCode: HttpStatus.OK,
-      data: res,
-    };
   }
 
   async getBillInfo(
@@ -336,7 +288,6 @@ export class BillService {
     }
 
     let fee = 0;
-
     switch (bill_type) {
       case 'cable':
         fee = CABLE_FEE;
@@ -369,14 +320,17 @@ export class BillService {
     body: VerifyBillerDto,
     bill_type: 'cable' | 'electricity',
   ) {
-    let res: any;
     try {
-      res = await this.apiProvider.verifyBillerNumber(body);
+      const res = await this.apiProvider.verifyBillerNumber(body);
+      return {
+        message: 'Biller number verified successfully',
+        statusCode: HttpStatus.OK,
+        data: res,
+      };
     } catch (error) {
       console.log('error while verifying number', error);
 
       let errorMessage = '';
-
       switch (bill_type) {
         case 'electricity':
           errorMessage = 'Invalid meter number';
@@ -394,17 +348,10 @@ export class BillService {
 
       throw error;
     }
-
-    return {
-      message: 'Biller number verified successfully',
-      statusCode: HttpStatus.OK,
-      data: res,
-    };
   }
 
   async getProductByISOCode(currency: string) {
     let res: any;
-
     try {
       res = await this.apiProvider.getProductByISOCode(currency);
     } catch (error) {
@@ -413,7 +360,7 @@ export class BillService {
     }
 
     const resData = res?.map((data: any) => {
-      const payAmountMap = new Map();
+      const payAmountMap = new Map<string | number, number>();
       if (data?.denominationType === 'FIXED') {
         if (
           Array.isArray(data?.fixedSenderDenominations) &&
@@ -426,7 +373,6 @@ export class BillService {
               const recipientDenomination =
                 data.fixedRecipientDenominations[index];
               const totalPrice = price + data?.senderFee + GIFT_CARD_FEE;
-
               payAmountMap.set(String(recipientDenomination), totalPrice);
             },
           );
@@ -441,7 +387,6 @@ export class BillService {
           String(data?.minRecipientDenomination),
           data?.minSenderDenomination + data?.senderFee + GIFT_CARD_FEE,
         );
-
         payAmountMap.set(
           String(data?.maxRecipientDenomination),
           data?.maxSenderDenomination + data?.senderFee + GIFT_CARD_FEE,
@@ -461,31 +406,37 @@ export class BillService {
     };
   }
 
+  /* -------------------------
+     Main payment workflow
+     ------------------------- */
   async pay(
     body: PayDto | GiftCardPayDto | PayBillDto,
     user: User & { wallet: Wallet },
     bill_type: BILL_TYPE,
   ) {
+    // 1. PIN check
     if (!user?.isWalletPinSet)
       throw new BadRequestException('Wallet pin not set');
 
     const isMatched = await bcrypt.compare(body?.walletPin, user?.walletPin);
-
     if (!isMatched) throw new BadRequestException('Incorrect pin');
 
-    const trx_ref = this.generateTransactionRef('DEBIT');
+    // Prepare refs & retry constants
+    const trx_ref_master = this.generateTransactionRef('DEBIT');
     const MAX_RETRIES = CONCURRENT_MAX_RETRIES;
     const BASE_DELAY = CONCURRENT_BASE_DELAY;
+
+    // Variables that will be populated during initial transaction creation
     let pendingTransactionId: string;
     let lockWallet: Wallet[] = [];
-    let oldBalance: number;
-    let newBalance: number;
+    let oldBalance = 0;
+    let newBalance = 0;
 
+    // 2. Create pending transaction and debit wallet inside a serializable transaction with FOR UPDATE locking
     try {
-      //create a pending transactino
       await this.prisma.$transaction(
         async (trx) => {
-          // Wallet lock and balance check with more explicit locking
+          // lock wallet
           lockWallet =
             await trx.$queryRaw`SELECT * FROM wallet WHERE "userId" = ${user?.id}::uuid FOR UPDATE SKIP LOCKED`;
 
@@ -500,18 +451,17 @@ export class BillService {
           oldBalance = lockWallet[0]?.balance;
           newBalance = oldBalance - body.amount;
 
-          // Update wallet balance
+          // update wallet
           await trx.wallet.update({
             where: { id: lockWallet[0]?.id },
             data: { balance: newBalance },
           });
 
-          //create a pending transaction
-          // Create bill debit transaction
+          // create pending transaction (debit)
           const pendingTrx = await trx.transaction.create({
             data: {
               walletId: lockWallet[0]?.id,
-              transactionRef: trx_ref,
+              transactionRef: trx_ref_master,
               type: TRANSACTION_TYPE.DEBIT,
               category: TRANSACTION_CATEGORY.BILL_PAYMENT,
               currency: body.currency,
@@ -528,7 +478,6 @@ export class BillService {
                       recipientPhone: (body as PayDto).phone,
                     }
                   : {}),
-
                 ...(bill_type === 'electricity' || bill_type === 'cable'
                   ? { recipientPhone: (body as PayBillDto).billerNumber }
                   : {}),
@@ -538,10 +487,7 @@ export class BillService {
 
           pendingTransactionId = pendingTrx.id;
         },
-        {
-          isolationLevel: 'Serializable',
-          timeout: 10000,
-        },
+        { isolationLevel: 'Serializable', timeout: 10000 },
       );
     } catch (error) {
       console.log('Error initiating bill payment', error);
@@ -550,177 +496,46 @@ export class BillService {
       );
     }
 
+    // 3. Attempt actual provider purchase with retries and exponential backoff
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
+        // Optionally add beneficiary (if requested)
         if (body?.addBeneficiary) {
-          let beneficiary: Beneficiary | null = null;
-
-          if (
-            bill_type === BILL_TYPE.airtime ||
-            bill_type === BILL_TYPE.data ||
-            bill_type === BILL_TYPE.internationalAirtime
-          ) {
-            beneficiary = await this.prisma.beneficiary.findFirst({
-              where: {
-                userId: user?.id,
-                billType: bill_type,
-                billerNumber: (body as PayDto)?.phone,
-              },
-            });
-          } else if (
-            bill_type === BILL_TYPE.cable ||
-            bill_type === BILL_TYPE.electricity
-          ) {
-            beneficiary = await this.prisma.beneficiary.findFirst({
-              where: {
-                userId: user?.id,
-                billType: bill_type,
-                billerNumber: (body as PayBillDto)?.billerNumber,
-              },
-            });
-          }
-
-          if (!beneficiary) {
-            let payload: any;
-
-            if (
-              bill_type === BILL_TYPE.airtime ||
-              bill_type === BILL_TYPE.data ||
-              bill_type === BILL_TYPE.internationalAirtime
-            ) {
-              payload = {
-                userId: user?.id,
-                type: BENEFICIARY_TYPE.BILL,
-                billType: bill_type,
-                billerNumber: (body as PayDto)?.phone,
-                network: this.getNetworkProvider((body as PayDto)?.phone),
-                operatorId: (body as PayDto)?.operatorId,
-              };
-            } else if (
-              bill_type === BILL_TYPE.cable ||
-              bill_type === BILL_TYPE.electricity
-            ) {
-              payload = {
-                userId: user?.id,
-                type: BENEFICIARY_TYPE.BILL,
-                billType: bill_type,
-                billerCode: (body as PayBillDto)?.billerCode,
-                itemCode: (body as PayBillDto)?.itemCode,
-                billerNumber: (body as PayBillDto)?.billerNumber,
-              };
-            }
-
-            await this.prisma.beneficiary.create({ data: payload });
-          }
+          await this.addBeneficiaryIfNeeded(user?.id, body, bill_type);
         }
 
-        // Process bill payment
-        let res: any;
-        const trx_ref = this.generateTransactionRef('DEBIT');
+        // provider purchase (new trx_ref per provider call)
+        const providerTrxRef = this.generateTransactionRef('DEBIT');
+        const res = await this.callProviderPurchase(
+          bill_type,
+          body,
+          user,
+          providerTrxRef,
+        );
 
+        // update transaction as success
+        await this.updateTransactionSuccess(
+          pendingTransactionId,
+          res,
+          body,
+          bill_type,
+        );
+
+        // send sms (best-effort)
         try {
-          if (bill_type === 'airtime' || bill_type === 'data') {
-            res = await this.apiProvider.purchaseTopup(
-              body as PayDto,
-              user?.email,
-              trx_ref,
-            );
-          } else if (bill_type === 'giftcard') {
-            res = await this.apiProvider.purchaseGiftcard(
-              body as GiftCardPayDto,
-              user?.email,
-              trx_ref,
-            );
-          } else if (
-            bill_type === 'cable' ||
-            bill_type === 'electricity' ||
-            bill_type === 'internet' ||
-            bill_type === 'transport' ||
-            bill_type === 'schoolfee'
-          ) {
-            res = await this.apiProvider.purchaseBill(
-              body as PayBillDto,
-              trx_ref,
-            );
-          } else {
-            res = await this.apiProvider.purchaseBillWithIdentifier(
-              body as PayBillDto,
-              user?.id,
-              trx_ref,
-            );
-          }
-        } catch (error) {
-          console.error(`Error paying for ${bill_type}`, error);
-          throw new InternalServerErrorException('Payment processing failed');
-        }
-
-        // update transaction
-        await this.prisma.transaction.update({
-          where: {
-            id: pendingTransactionId,
-          },
-          data: {
-            status: TRANSACTION_STATUS.success,
-            billDetails: {
-              recipientEmail: res?.recipientEmail,
-              recipientPhone: res?.recipientPhone ?? res?.phone_number,
-              type: bill_type,
-              fee: res?.fee,
-              reference: res?.reference,
-              amount: body?.amount,
-              amountPaid: body?.amount,
-              ...(bill_type === 'airtime' || bill_type === 'data'
-                ? {
-                    network: this.getNetworkProvider((body as PayDto).phone),
-                  }
-                : {}),
-              ...(bill_type === 'giftcard'
-                ? { transactionId: res?.transactionId }
-                : {}),
-              ...(bill_type === 'electricity' && res?.recharge_token
-                ? { recharge_token: res?.recharge_token }
-                : {}),
-            },
-          },
-        });
-
-        try {
-          // send sms message
-          const AccountNumber = lockWallet[0]?.accountNumber;
-          const maskedAccountNumber = `${AccountNumber.substring(0, 2)}xxx..${AccountNumber.substring(AccountNumber.length - 4, AccountNumber.length - 1)}x`;
-          const now = new Date();
-          const formattedDate = now.toLocaleString('en-US', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true,
-          });
-          const smsMessage = getSMSAlertMessage(
-            String(body?.amount),
-            res?.recipientPhone ?? res?.phone_number,
-            lockWallet[0]?.accountName,
-            res?.customIdentifier ?? res?.tx_ref,
-            formattedDate,
-            Number(newBalance.toFixed(2)),
+          await this.sendSmsAlert(
+            lockWallet[0],
+            user?.phoneNumber,
+            body,
+            res,
+            newBalance,
             bill_type,
-            {
-              isCredit: false,
-            },
-            maskedAccountNumber,
-            '',
-            '',
-            '',
-            bill_type === BILL_TYPE.electricity ? res?.recharge_token : '',
           );
-
-          this.apiProvider.sendSms(user?.phoneNumber, smsMessage, 'termii');
-        } catch (error) {
-          console.log('error while sending sms message', error);
+        } catch (smsErr) {
+          console.log('error while sending sms message', smsErr);
         }
 
-        // Successful transaction
+        // return response to client
         return {
           message: 'Purchase successfully',
           statusCode: HttpStatus.OK,
@@ -733,101 +548,303 @@ export class BillService {
               : {}),
           },
         };
-      } catch (error) {
-        // Handle specific Prisma transaction conflict errors
+      } catch (error: any) {
+        // Handle concurrency/serialization errors and retry with backoff
         if (
-          (error.code === 'P2034' || error.code === 'P40001') &&
+          (error?.code === 'P2034' || error?.code === 'P40001') &&
           attempt < MAX_RETRIES - 1
         ) {
-          // Exponential backoff with jitter
           const delay =
-            Math.min(
-              BASE_DELAY * Math.pow(2, attempt),
-              5000, // Max delay of 5 seconds
-            ) +
+            Math.min(BASE_DELAY * Math.pow(2, attempt), 5000) +
             Math.random() * 100;
-
           console.log(
             `Serialization failure on attempt ${attempt + 1}. Retrying in ${delay}ms...`,
           );
-
-          await new Promise((resolve) => setTimeout(resolve, delay));
+          await new Promise((r) => setTimeout(r, delay));
           continue;
         }
 
-        // update the pending trx to failed
-        await this.prisma.transaction.update({
-          where: {
-            id: pendingTransactionId,
-          },
-          data: {
-            status: TRANSACTION_STATUS.failed,
-            currentBalance: oldBalance + body?.amount,
-          },
-        });
-
-        // refund's  user wallet
-        await this.prisma.$transaction(async (trx) => {
-          const lockfromWallet: Wallet[] =
-            await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${lockWallet[0]?.id}::uuid AND currency::text = ${body.currency.toString()}  FOR UPDATE SKIP LOCKED LIMIT 1`;
-
-          if (!lockfromWallet.length || !lockfromWallet[0]) {
-            throw new ConflictException(
-              'Unable to access wallet at this time, please try again',
-            );
-          }
-
-          await trx.wallet.update({
-            where: {
-              id: lockfromWallet[0]?.id,
-            },
+        // For any other failure: mark transaction failed & refund wallet
+        try {
+          await this.prisma.transaction.update({
+            where: { id: pendingTransactionId },
             data: {
-              balance: lockfromWallet[0]?.balance + body?.amount,
+              status: TRANSACTION_STATUS.failed,
+              currentBalance: oldBalance + body?.amount,
             },
           });
-        });
-
-        // Log and rethrow other errors
-        console.error('Transaction failed:', error);
-        if (error instanceof BadRequestException) {
-          throw error;
+        } catch (updErr) {
+          console.error(
+            'Failed to update pending transaction to failed',
+            updErr,
+          );
         }
+
+        try {
+          await this.refundAndUnlockWallet(lockWallet[0], body as any);
+        } catch (refundErr) {
+          console.error('Refund failed', refundErr);
+          // If refund failed, escalate as internal server error
+        }
+
+        console.error('Transaction failed:', error);
+        if (error instanceof BadRequestException) throw error;
         throw new InternalServerErrorException('Payment processing failed');
       }
     }
-    // If all retries fail
+
+    // If all retries exhausted
     throw new InternalServerErrorException('Payment processing failed');
   }
 
+  /* -------------------------
+     Private helpers
+     ------------------------- */
+
+  private resolveNetworkFromString(network: string): NETWORK {
+    switch (network?.toLocaleLowerCase()) {
+      case 'mtn':
+        return NETWORK.mtn;
+      case 'airtel':
+        return NETWORK.airtel;
+      case 'etisalat':
+        return NETWORK.etisalat;
+      case 'glo':
+        return NETWORK.glo;
+      default:
+        throw new BadRequestException('Unsupported network');
+    }
+  }
+
+  private async addBeneficiaryIfNeeded(
+    userId: string,
+    body: PayDto | GiftCardPayDto | PayBillDto,
+    bill_type: BILL_TYPE,
+  ) {
+    let beneficiary: Beneficiary | null = null;
+
+    if (
+      bill_type === BILL_TYPE.airtime ||
+      bill_type === BILL_TYPE.data ||
+      bill_type === BILL_TYPE.internationalAirtime
+    ) {
+      beneficiary = await this.prisma.beneficiary.findFirst({
+        where: {
+          userId,
+          billType: bill_type,
+          billerNumber: (body as PayDto)?.phone,
+        },
+      });
+    } else if (
+      bill_type === BILL_TYPE.cable ||
+      bill_type === BILL_TYPE.electricity
+    ) {
+      beneficiary = await this.prisma.beneficiary.findFirst({
+        where: {
+          userId,
+          billType: bill_type,
+          billerNumber: (body as PayBillDto)?.billerNumber,
+        },
+      });
+    }
+
+    if (!beneficiary) {
+      let payload: any;
+      if (
+        bill_type === BILL_TYPE.airtime ||
+        bill_type === BILL_TYPE.data ||
+        bill_type === BILL_TYPE.internationalAirtime
+      ) {
+        payload = {
+          userId,
+          type: BENEFICIARY_TYPE.BILL,
+          billType: bill_type,
+          billerNumber: (body as PayDto)?.phone,
+          network: this.getNetworkProvider((body as PayDto)?.phone),
+          operatorId: (body as PayDto)?.operatorId,
+        };
+      } else if (
+        bill_type === BILL_TYPE.cable ||
+        bill_type === BILL_TYPE.electricity
+      ) {
+        payload = {
+          userId,
+          type: BENEFICIARY_TYPE.BILL,
+          billType: bill_type,
+          billerCode: (body as PayBillDto)?.billerCode,
+          itemCode: (body as PayBillDto)?.itemCode,
+          billerNumber: (body as PayBillDto)?.billerNumber,
+        };
+      }
+
+      if (payload) {
+        await this.prisma.beneficiary.create({ data: payload });
+      }
+    }
+  }
+
+  private async callProviderPurchase(
+    bill_type: BILL_TYPE | string,
+    body: PayDto | GiftCardPayDto | PayBillDto,
+    user: User & { wallet: Wallet },
+    trx_ref: string,
+  ) {
+    try {
+      if (bill_type === 'airtime' || bill_type === 'data') {
+        return await this.apiProvider.purchaseTopup(
+          body as PayDto,
+          user?.email,
+          trx_ref,
+        );
+      } else if (bill_type === 'giftcard') {
+        return await this.apiProvider.purchaseGiftcard(
+          body as GiftCardPayDto,
+          user?.email,
+          trx_ref,
+        );
+      } else if (
+        bill_type === 'cable' ||
+        bill_type === 'electricity' ||
+        bill_type === 'internet' ||
+        bill_type === 'transport' ||
+        bill_type === 'schoolfee'
+      ) {
+        return await this.apiProvider.purchaseBill(body as PayBillDto, trx_ref);
+      } else {
+        return await this.apiProvider.purchaseBillWithIdentifier(
+          body as PayBillDto,
+          user?.id,
+          trx_ref,
+        );
+      }
+    } catch (error) {
+      console.error(`Error paying for ${bill_type}`, error);
+      throw new InternalServerErrorException('Payment processing failed');
+    }
+  }
+
+  private async updateTransactionSuccess(
+    transactionId: string,
+    providerRes: any,
+    body: PayDto | GiftCardPayDto | PayBillDto,
+    bill_type: BILL_TYPE,
+  ) {
+    await this.prisma.transaction.update({
+      where: { id: transactionId },
+      data: {
+        status: TRANSACTION_STATUS.success,
+        billDetails: {
+          recipientEmail: providerRes?.recipientEmail,
+          recipientPhone:
+            providerRes?.recipientPhone ?? providerRes?.phone_number,
+          type: bill_type,
+          fee: providerRes?.fee,
+          reference: providerRes?.reference,
+          amount: body?.amount,
+          amountPaid: body?.amount,
+          ...(bill_type === 'airtime' || bill_type === 'data'
+            ? { network: this.getNetworkProvider((body as PayDto).phone) }
+            : {}),
+          ...(bill_type === 'giftcard'
+            ? { transactionId: providerRes?.transactionId }
+            : {}),
+          ...(bill_type === 'electricity' && providerRes?.recharge_token
+            ? { recharge_token: providerRes?.recharge_token }
+            : {}),
+        },
+      },
+    });
+  }
+
+  private async refundAndUnlockWallet(
+    lockWalletRow: Wallet,
+    body: { amount: number; currency: string },
+  ) {
+    await this.prisma.$transaction(async (trx) => {
+      const lockfromWallet: Wallet[] =
+        await trx.$queryRaw`SELECT * FROM wallet WHERE id = ${lockWalletRow?.id}::uuid AND currency::text = ${body.currency.toString()}  FOR UPDATE SKIP LOCKED LIMIT 1`;
+
+      if (!lockfromWallet.length || !lockfromWallet[0]) {
+        throw new ConflictException(
+          'Unable to access wallet at this time, please try again',
+        );
+      }
+
+      await trx.wallet.update({
+        where: { id: lockfromWallet[0]?.id },
+        data: { balance: lockfromWallet[0]?.balance + body?.amount },
+      });
+    });
+  }
+
+  private async sendSmsAlert(
+    walletRow: Wallet,
+    userPhoneNumber: string,
+    body: PayDto | GiftCardPayDto | PayBillDto,
+    providerRes: any,
+    newBalance: number,
+    bill_type: BILL_TYPE,
+  ) {
+    try {
+      const AccountNumber = walletRow?.accountNumber ?? '';
+      const maskedAccountNumber =
+        AccountNumber.length >= 6
+          ? `${AccountNumber.substring(0, 2)}xxx..${AccountNumber.substring(AccountNumber.length - 4, AccountNumber.length - 1)}x`
+          : AccountNumber;
+
+      const now = new Date();
+      const formattedDate = now.toLocaleString('en-US', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+
+      const smsMessage = getSMSAlertMessage(
+        String(body?.amount),
+        providerRes?.recipientPhone ?? providerRes?.phone_number,
+        walletRow?.accountName,
+        providerRes?.customIdentifier ?? providerRes?.tx_ref,
+        formattedDate,
+        Number(newBalance.toFixed(2)),
+        bill_type,
+        { isCredit: false },
+        maskedAccountNumber,
+        '',
+        '',
+        '',
+        bill_type === BILL_TYPE.electricity ? providerRes?.recharge_token : '',
+      );
+
+      this.apiProvider.sendSms(userPhoneNumber, smsMessage, 'termii');
+    } catch (error) {
+      // best-effort only — do not fail the whole payment flow because of SMS
+      console.log('error while sending sms message', error);
+    }
+  }
+
+  /* -------------------------
+     Utility helpers
+     ------------------------- */
   private getNetworkProvider(phoneNumber: string): NETWORK {
     const formattedNumber = this.formatPhoneNumber(phoneNumber);
 
-    const isMtn = MTN_PREFIXES.some((prefix) =>
-      formattedNumber.startsWith(prefix),
-    );
+    if (MTN_PREFIXES.some((prefix) => formattedNumber.startsWith(prefix)))
+      return NETWORK.mtn;
+    if (GLO_PREFIXES.some((prefix) => formattedNumber.startsWith(prefix)))
+      return NETWORK.glo;
+    if (AIRTEL_PREFIXES.some((prefix) => formattedNumber.startsWith(prefix)))
+      return NETWORK.airtel;
+    if (ETISALAT_PREFIXES.some((prefix) => formattedNumber.startsWith(prefix)))
+      return NETWORK.etisalat;
 
-    if (isMtn) return NETWORK.mtn;
-
-    const isGlo = GLO_PREFIXES.some((prefix) =>
-      formattedNumber.startsWith(prefix),
-    );
-
-    if (isGlo) return NETWORK.glo;
-
-    const isAirtel = AIRTEL_PREFIXES.some((prefix) =>
-      formattedNumber.startsWith(prefix),
-    );
-
-    if (isAirtel) return NETWORK.airtel;
-
-    const isEtisalat = ETISALAT_PREFIXES.some((prefix) =>
-      formattedNumber.startsWith(prefix),
-    );
-
-    if (isEtisalat) return NETWORK.etisalat;
+    return undefined;
   }
 
   private formatPhoneNumber(phoneNumber: string): string {
+    if (!phoneNumber) return phoneNumber;
     if (phoneNumber.charAt(0) !== '0') {
       return '0' + phoneNumber;
     }
@@ -836,27 +853,22 @@ export class BillService {
 
   private generateTransactionRef(type: string) {
     const prefix = type === 'CREDIT' ? 'credit_' : 'debit_';
-    const uniqueId = uuidv4(); // Generate a unique UUID
+    const uniqueId = uuidv4();
     return `${prefix}${uniqueId}`;
   }
 
   private getInternationalParsedNumber = (phoneNumber: string) => {
+    if (!phoneNumber) return null;
     if (phoneNumber.startsWith('+')) {
       return parsePhoneNumber(phoneNumber);
     }
-
     if (phoneNumber.startsWith('0')) {
-      // Remove leading 0
       const normalizedNumber = phoneNumber.substring(1);
-
-      // Try with NG (Nigeria) first as it's most common in our context
       const withNG = parsePhoneNumber(normalizedNumber, 'NG');
       if (withNG?.isValid()) {
         return withNG;
       }
     }
-
-    // Try parsing as international number without '+'
     return parsePhoneNumber(`+${phoneNumber}`);
   };
 }
