@@ -39,7 +39,6 @@ export class RegisterDto {
 
   @IsOptional()
   @IsString()
-  @IsEnum(CURRENCY)
   countryCode?: string;
 
   @IsOptional()
@@ -47,9 +46,8 @@ export class RegisterDto {
   referralCode?: string;
 
   @IsOptional()
-  @IsString()
   @IsEnum(CURRENCY)
-  currency?: string;
+  currency?: CURRENCY;
 
   @IsOptional()
   @IsBoolean()
@@ -57,5 +55,5 @@ export class RegisterDto {
 
   @IsOptional()
   @IsEnum(ACCOUNT_TYPE)
-  accountType?: ACCOUNT_TYPE = ACCOUNT_TYPE.PERSONAL;
+  accountType: ACCOUNT_TYPE = ACCOUNT_TYPE.PERSONAL;
 }

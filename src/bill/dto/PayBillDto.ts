@@ -6,6 +6,9 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Length,
+  Matches,
+  Min,
 } from 'class-validator';
 
 export class PayBillDto {
@@ -17,23 +20,26 @@ export class PayBillDto {
   @IsString()
   billerCode: string;
 
-  @IsString()
-  @IsEnum(CURRENCY)
-  currency: string;
-
   @IsNotEmpty()
+  @IsEnum(CURRENCY, { message: 'Invalid currency code' })
+  currency: CURRENCY;
+
   @IsOptional()
-  billerNumber: string;
+  @IsString()
+  billerNumber?: string;
 
   @IsNotEmpty()
   @IsNumber()
+  @Min(0.01, { message: 'Amount must be greater than 0' })
   amount: number;
 
   @IsNotEmpty()
   @IsString()
+  @Length(4, 6, { message: 'Wallet PIN must be 4–6 digits long' })
+  @Matches(/^[0-9]+$/, { message: 'Wallet PIN must contain only numbers' })
   walletPin: string;
 
-  @IsBoolean()
   @IsOptional()
-  addBeneficiary: boolean = false;
+  @IsBoolean()
+  addBeneficiary?: boolean;
 }

@@ -1,15 +1,15 @@
 import { IsNotEmpty, IsString } from 'class-validator';
 
 export class KycTier3Dto {
-  @IsNotEmpty()
-  @IsString()
+  @IsString({ message: 'City must be a string' })
+  @IsNotEmpty({ message: 'City is required' })
   city: string;
 
-  @IsNotEmpty()
-  @IsString()
+  @IsString({ message: 'State must be a string' })
+  @IsNotEmpty({ message: 'State is required' })
   state: string;
 
-  @IsNotEmpty()
-  @IsString()
+  @IsString({ message: 'Address must be a string' })
+  @IsNotEmpty({ message: 'Address is required' })
   address: string;
 }

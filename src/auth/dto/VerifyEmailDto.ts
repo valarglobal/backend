@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, Length, Matches } from 'class-validator';
 
 export class VerifyEmailDto {
   @IsNotEmpty()
@@ -7,5 +7,7 @@ export class VerifyEmailDto {
 
   @IsNotEmpty()
   @IsString()
-  otpCode: string;
+  @Length(6, 6, { message: 'OTP must be exactly 6 digits' })
+  @Matches(/^[0-9]+$/, { message: 'OTP must contain only numbers' })
+  otpCode: string; // renamed for clarity
 }

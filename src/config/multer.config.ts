@@ -7,37 +7,27 @@ import {
   USER_CLOUDINARY_FOLDER_NAME,
 } from 'src/constants';
 
-// Configure Cloudinary storage
-const cloudinaryStorage = (folder: string) =>
+const buildCloudinaryStorage = (folder: string) =>
   new CloudinaryStorage({
-    cloudinary: cloudinary,
+    cloudinary,
     params: {
-      public_id: (req: Request, file: Express.Multer.File) => {
-        return `${req['user'].fullname}_${Date.now()}_${file.originalname.split('.')[0]}`;
-      },
-      folder: folder, // Folder in Cloudinary
-      allowed_formats: ['jpg', 'jpeg', 'png', 'webp'], // Allowed file formats
+      public_id: (req: Request, file: Express.Multer.File) =>
+        `${req['user']?.fullname ?? 'user'}_${Date.now()}_${file.originalname.split('.')[0]}`,
+      folder,
+      allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
       transformation: [
         { width: 500, height: 500, crop: 'limit', quality: 'auto' },
-      ], // Optional transformations
+      ],
     } as CloudinaryStorage['params'],
   });
-
-// export const multerOptions: MulterOptions = {
-//   storage: cloudinaryStorage,
-// };
 
 export const multerOptions = (
   type: 'profile' | 'report-scam',
 ): MulterOptions => {
-  let folder: string;
-  if (type === 'profile') {
-    folder = USER_CLOUDINARY_FOLDER_NAME;
-  } else if (type === 'report-scam') {
-    folder = REPORT_SCAM_CLOUDINARY_FOLDER_NAME;
-  }
+  const folder =
+    type === 'profile'
+      ? USER_CLOUDINARY_FOLDER_NAME
+      : REPORT_SCAM_CLOUDINARY_FOLDER_NAME;
 
-  return {
-    storage: cloudinaryStorage(folder),
-  };
+  return { storage: buildCloudinaryStorage(folder) };
 };
