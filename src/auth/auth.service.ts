@@ -157,6 +157,8 @@ export class AuthService {
     const otpCode = this.generateOtp(6);
     const otpToken = await this.createOtpToken(user.id, otpCode);
 
+    console.log('login otp for ' + body.email + ' is ' + otpCode);
+
     await this.prisma.user.update({
       where: { id: user.id },
       data: { otpToken },
